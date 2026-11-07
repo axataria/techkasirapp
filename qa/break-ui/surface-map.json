@@ -1,0 +1,662 @@
+{
+  "me": {
+    "id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "name": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "role": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "store": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    }
+  },
+  "dashboard": {
+    "unitRevenue": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "serviceRevenue": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "incomes": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "expenses": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "losses": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "receivables": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "totalRevenue": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "grossProfit": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "netProfit": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "cash": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "available": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "inProcess": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "inventoryValue": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "openServices": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    }
+  },
+  "reports": {
+    "year": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "years": {
+      "type": "object",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "months": {
+      "type": "object",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    }
+  },
+  "opening": {
+    "id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "store_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "effective_on": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "amount": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "created_at": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    }
+  },
+  "customers": {
+    "id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "store_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "name": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "phone": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "notes": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "created_at": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "transactions": {
+      "type": "object",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "outstanding": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "advances": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    }
+  },
+  "units": {
+    "id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "store_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "code": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "category": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "model": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "specs": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "supplier": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "intake_date": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "purchase_amount": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "repair_amount": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "extra_amount": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "target_amount": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "status": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "notes": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "created_at": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "sale_id": {
+      "type": "object",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "total_cost": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "paid": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    }
+  },
+  "sales": {
+    "id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "store_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "code": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "unit_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "customer_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "buyer_name": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "sold_on": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "price_amount": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "discount_amount": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "sale_cost_amount": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "unit_cost_snapshot": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "created_at": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "unit_code": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "model": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "customer_name": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "invoice_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "invoice_number": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "paid": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "remaining": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    }
+  },
+  "services": {
+    "id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "store_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "code": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "customer_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "received_on": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "completed_on": {
+      "type": "object",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "category": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "model": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "complaint": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "part_code": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "part_unit_cost": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "part_qty": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "part_charge": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "service_charge": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "technician_cost": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "estimate_amount": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "status": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "notes": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "created_at": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "customer_name": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "invoice_id": {
+      "type": "object",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "invoice_number": {
+      "type": "object",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "paid": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "remaining": {
+      "type": "object",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    }
+  },
+  "payments": {
+    "id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "store_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "source_type": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "source_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "direction": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "amount": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "method": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "paid_on": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "reference": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "created_by": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "created_at": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "document_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "document_number": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "kind": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "reversed_by": {
+      "type": "object",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "correction_reason": {
+      "type": "object",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "original_document_number": {
+      "type": "object",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "details": {
+      "type": "object",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    }
+  },
+  "expenses": {
+    "id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "store_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "code": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "happened_on": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "category": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "description": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "amount": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "created_at": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "paid": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "remaining": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    }
+  },
+  "incomes": {
+    "id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "store_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "code": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "happened_on": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "category": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "description": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "amount": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "created_at": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "paid": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "remaining": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    }
+  },
+  "losses": {
+    "id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "store_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "code": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "happened_on": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "category": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "description": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "amount": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "created_at": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "paid": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    },
+    "remaining": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    }
+  },
+  "users": {
+    "id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "username": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "name": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "role": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "active": {
+      "type": "number",
+      "limit": "safe integer for input money; aggregates require separate checks"
+    }
+  },
+  "audit": {
+    "id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "store_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "actor_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "entity": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "entity_id": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "action": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "detail": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    },
+    "created_at": {
+      "type": "string",
+      "limit": "ISO date/timestamp"
+    },
+    "actor_name": {
+      "type": "string",
+      "limit": "unbounded text unless enum"
+    }
+  }
+}

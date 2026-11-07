@@ -1,0 +1,90 @@
+[
+  {
+    "name": "Long unit dropdown",
+    "options": [
+      {
+        "label": "Pilih…",
+        "length": 6
+      },
+      {
+        "label": "INV/JKT/TECHKASIR/REKONDISI/CORPORATE/2026/11/0000010 · Lenovo ThinkPad X1 Carbon Gen 12 Intel Core Ultra 7 RAM 64 GB SSD 2 TB Garansi Distributor Indonesia",
+        "length": 156
+      }
+    ],
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\long-unit-dropdown-320.png"
+  },
+  {
+    "name": "Long row action popover",
+    "value": {
+      "left": 8,
+      "right": 272,
+      "width": 264,
+      "text": "Lihat riwayat"
+    },
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\row-action-popover-320.png"
+  },
+  {
+    "name": "First chart tooltip at mobile width",
+    "value": {
+      "left": 0,
+      "right": 0,
+      "text": "Jan 2026Rp 9.876.543.210.987Laba bersih Rp -987.654.321.098"
+    },
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\chart-tooltip-320.png"
+  },
+  {
+    "name": "Account name Raden Ajeng Sekar Ayu Puspitaningrum Kusumaningtyas Pramudawardhani",
+    "value": {
+      "avatar": "R",
+      "heading": "Raden Ajeng Sekar Ayu Puspitaningrum Kusumaningtyas PramudawardhaniPemilik · PT Teknologi Nusantara Cabang Jakarta Selatan — Penjualan Laptop & Ponsel Rekondisi"
+    },
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\account-long-name-320.png"
+  },
+  {
+    "name": "Account name J",
+    "value": {
+      "avatar": "J",
+      "heading": "JPemilik · PT Teknologi Nusantara Cabang Jakarta Selatan — Penjualan Laptop & Ponsel Rekondisi"
+    },
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\account-one-letter-320.png"
+  },
+  {
+    "name": "Actual rendered platform fonts",
+    "fonts": [
+      {
+        "familyName": "Segoe UI",
+        "postScriptName": "SegoeUI-Bold",
+        "isCustomFont": false,
+        "glyphCount": 26
+      }
+    ]
+  },
+  {
+    "name": "Network failures",
+    "failures": [
+      {
+        "url": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..700&display=swap",
+        "error": "net::ERR_NETWORK_ACCESS_DENIED"
+      },
+      {
+        "url": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..700&display=swap",
+        "error": "net::ERR_NETWORK_ACCESS_DENIED"
+      },
+      {
+        "url": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..700&display=swap",
+        "error": "net::ERR_NETWORK_ACCESS_DENIED"
+      },
+      {
+        "url": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..700&display=swap",
+        "error": "net::ERR_NETWORK_ACCESS_DENIED"
+      },
+      {
+        "url": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..700&display=swap",
+        "error": "net::ERR_NETWORK_ACCESS_DENIED"
+      },
+      {
+        "error": "net::ERR_NETWORK_ACCESS_DENIED"
+      }
+    ]
+  }
+]

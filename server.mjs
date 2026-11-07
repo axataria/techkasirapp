@@ -1,8 +1,10 @@
 import http from 'node:http';
+import { searchRecords } from './search.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { randomBytes, randomUUID, scryptSync, createHash, timingSafeEqual } from 'node:crypto';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { join, extname } from 'node:path';
+import { sumMoney, subtractMoney, multiplyMoney, publicInteger, validateTextFields, formatMoney } from './public/domain.js';
 
 const root = new URL('.', import.meta.url).pathname.replace(/^\/(\w:)/, '$1');
 const dataDir = process.env.TECHKASIR_DATA_DIR || join(root, 'data');
@@ -36,10 +38,26 @@ CREATE INDEX IF NOT EXISTS idx_sales_customer ON sales(customer_id);
 
 const now = () => new Date().toISOString();
 const uid = () => randomUUID();
-const one = (sql, ...args) => db.prepare(sql).get(...args);
-const all = (sql, ...args) => db.prepare(sql).all(...args);
+function readRow(row) {
+  return row && Object.fromEntries(Object.entries(row).map(([key, value]) =>
+    [key, typeof value === 'bigint' ? publicInteger(value) : value]));
+}
+function readStatement(sql) {
+  const statement = db.prepare(sql);
+  statement.setReadBigInts(true);
+  return statement;
+}
+const one = (sql, ...args) => readRow(readStatement(sql).get(...args));
+const all = (sql, ...args) => readStatement(sql).all(...args).map(readRow);
 const run = (sql, ...args) => db.prepare(sql).run(...args);
 const money = value => { const n = Number(value); if (!Number.isSafeInteger(n) || n < 0) throw bad('Jumlah harus bilangan rupiah positif atau nol.'); return n; };
+function storedMoney(value) {
+  const exact = BigInt(value);
+  if (exact < 0n || exact > 9223372036854775807n) {
+    throw bad('Total transaksi melebihi batas rupiah yang dapat disimpan. Kurangi jumlah atau biaya.');
+  }
+  return value;
+}
 const date = value => { const v=String(value||''); if(!/^\d{4}-\d{2}-\d{2}$/.test(v))throw bad('Tanggal tidak valid.');const parsed=new Date(`${v}T00:00:00Z`);if(Number.isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==v)throw bad('Tanggal tidak valid.');return v; };
 const required = (value, label) => { const v = String(value ?? '').trim(); if (!v) throw bad(`${label} wajib diisi.`); return v; };
 const bad = (message, status = 400) => Object.assign(new Error(message), { status });
@@ -55,13 +73,39 @@ function cookie(req, name) { return (req.headers.cookie || '').split(';').map(x 
 function userFor(req) { const token = cookie(req, 'tk_session'); if (!token) return null; return one('SELECT u.id,u.store_id,u.username,u.name,u.role,u.active,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1', hash(token), now()) || null; }
 function needUser(req) { const u = userFor(req); if (!u) throw bad('Silakan masuk terlebih dahulu.', 401); return u; }
 function needRole(u, roles) { if (!roles.includes(u.role)) throw bad('Akses tidak diizinkan.', 403); }
-function bodyOf(req) { return new Promise((resolve, reject) => { let raw = ''; req.on('data', chunk => { raw += chunk; if (raw.length > 1_000_000) { reject(bad('Data terlalu besar.', 413)); req.destroy(); } }); req.on('end', () => { try { resolve(raw ? JSON.parse(raw) : {}); } catch { reject(bad('JSON tidak valid.')); } }); }); }
+function bodyOf(req) {
+  return new Promise((resolve, reject) => {
+    let raw = '';
+    req.on('data', chunk => {
+      raw += chunk;
+      if (raw.length > 1_000_000) { reject(bad('Data terlalu besar.', 413)); req.destroy(); }
+    });
+    req.on('end', () => {
+      try {
+        let payload;
+        try { payload = raw ? JSON.parse(raw) : {}; } catch { throw bad('JSON tidak valid.'); }
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw bad('JSON tidak valid.');
+        if (req.url.split('?')[0] !== '/api/login') {
+          let existing = {};
+          const edit = req.url.match(/^\/api\/services\/([^/?]+)$/);
+          const user = edit && req.method === 'PATCH' ? userFor(req) : null;
+          if (user) {
+            const row = one('SELECT notes,part_code FROM service_jobs WHERE id=? AND store_id=?', edit[1], user.store_id);
+            if (row) existing = {notes:row.notes, partCode:row.part_code};
+          }
+          validateTextFields(payload, existing);
+        }
+        resolve(payload);
+      } catch (error) { reject(error); }
+    });
+  });
+}
 function sessionCookie(req, token) { return `tk_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800${req.socket.encrypted ? '; Secure' : ''}`; }
-function invoice(storeId, sourceType, sourceId, amount, snapshot) { const id = uid(); run('INSERT INTO invoices VALUES(?,?,?,?,?,?,?,?)', id, storeId, nextNumber(storeId, 'INV'), sourceType, sourceId, amount, JSON.stringify(snapshot), now()); return id; }
-function paid(sourceType, sourceId) { const direction=['sale','service','income'].includes(sourceType)?'IN':'OUT'; return Number(one('SELECT COALESCE(SUM(CASE WHEN direction=? THEN amount ELSE -amount END),0) AS total FROM payments WHERE source_type=? AND source_id=?',direction,sourceType,sourceId)?.total || 0); }
+function invoice(storeId, sourceType, sourceId, amount, snapshot) { const id = uid(); run('INSERT INTO invoices VALUES(?,?,?,?,?,?,?,?)', id, storeId, nextNumber(storeId, 'INV'), sourceType, sourceId, storedMoney(amount), JSON.stringify(snapshot), now()); return id; }
+function paid(sourceType, sourceId) { const direction=['sale','service','income'].includes(sourceType)?'IN':'OUT'; return (one('SELECT COALESCE(SUM(CASE WHEN direction=? THEN amount ELSE -amount END),0) AS total FROM payments WHERE source_type=? AND source_id=?',direction,sourceType,sourceId)?.total || 0); }
 function paymentSource(type, id, storeId) {
   if (type === 'sale') { const s = one('SELECT s.*,c.name customer_name FROM sales s LEFT JOIN customers c ON c.id=s.customer_id WHERE s.id=? AND s.store_id=?', id, storeId); if (!s) throw bad('Penjualan tidak ditemukan.'); return { label: s.code, person: s.customer_name || s.buyer_name, due: s.price_amount - s.discount_amount, direction: 'IN' }; }
-  if (type === 'service') { const s = one('SELECT j.*,c.name customer_name,c.phone customer_phone FROM service_jobs j JOIN customers c ON c.id=j.customer_id WHERE j.id=? AND j.store_id=?', id, storeId); if (!s) throw bad('Servis tidak ditemukan.'); if(s.status==='Batal') throw bad('Servis batal tidak dapat menerima pembayaran.'); return { label: s.code, person: s.customer_name, due: s.status === 'Selesai' ? s.part_charge + s.service_charge : s.estimate_amount, direction: 'IN', advance: s.status !== 'Selesai', contact:s.customer_phone }; }
+  if (type === 'service') { const s = one('SELECT j.*,c.name customer_name,c.phone customer_phone FROM service_jobs j JOIN customers c ON c.id=j.customer_id WHERE j.id=? AND j.store_id=?', id, storeId); if (!s) throw bad('Servis tidak ditemukan.'); if(s.status==='Batal') throw bad('Servis batal tidak dapat menerima pembayaran.'); return { label: s.code, person: s.customer_name, due: s.status === 'Selesai' ? sumMoney(s.part_charge, s.service_charge) : s.estimate_amount, direction: 'IN', advance: s.status !== 'Selesai', contact:s.customer_phone }; }
   const map = { unit: ['units', 'code', 'purchase_amount+repair_amount+extra_amount', 'OUT'], expense: ['expenses', 'code', 'amount', 'OUT'], income: ['incomes', 'code', 'amount', 'IN'], loss: ['losses', 'code', 'amount', 'OUT'] };
   const m = map[type]; if (!m) throw bad('Jenis sumber pembayaran tidak valid.');
   const s = one(`SELECT *, ${m[2]} AS due FROM ${m[0]} WHERE id=? AND store_id=?`, id, storeId); if (!s) throw bad('Transaksi tidak ditemukan.');
@@ -72,12 +116,12 @@ function postPayment(u, b) {
   const source = paymentSource(type, sourceId, u.store_id); const amount = money(b.amount); if (!amount) throw bad('Pembayaran harus lebih dari nol.');
   if (type==='service' && source.advance && source.due===0) throw bad('Isi estimasi servis sebelum menerima DP.');
   if (type==='service' && source.advance && !source.contact) throw bad('Nomor HP pelanggan diperlukan untuk mencatat DP servis.');
-  const existing = paid(type, sourceId); if (amount > source.due - existing) throw bad('Pembayaran melebihi sisa tagihan atau estimasi.');
+  const existing = paid(type, sourceId); if (BigInt(amount) > BigInt(subtractMoney(source.due, existing))) throw bad('Pembayaran melebihi sisa tagihan atau estimasi.');
   const method = required(b.method, 'Metode'); if (!['Cash','Transfer','QRIS'].includes(method)) throw bad('Metode tidak valid.');
   const id = uid(), paidOn = date(b.paidOn), invoiceRow = one('SELECT id,number FROM invoices WHERE source_type=? AND source_id=?', type, sourceId);
   run('INSERT INTO payments VALUES(?,?,?,?,?,?,?,?,?,?,?)', id, u.store_id, type, sourceId, source.direction, amount, method, paidOn, String(b.reference || ''), u.id, now());
   const kind = source.direction === 'IN' ? (source.advance ? 'Uang muka diterima' : 'Kuitansi pembayaran') : 'Bukti pembayaran';
-  const doc = { store: one('SELECT name FROM stores WHERE id=?', u.store_id).name, source: source.label, invoice: invoiceRow?.number || null, person: source.person || '', paidOn, amount, method, reference: String(b.reference || ''), cumulative: existing + amount, remaining: source.due - existing - amount, issuer: u.name, kind };
+  const doc = { store: one('SELECT name FROM stores WHERE id=?', u.store_id).name, source: source.label, invoice: invoiceRow?.number || null, person: source.person || '', paidOn, amount, method, reference: String(b.reference || ''), cumulative: sumMoney(existing, amount), remaining: subtractMoney(subtractMoney(source.due, existing), amount), issuer: u.name, kind };
   const docId = uid(); run('INSERT INTO payment_documents VALUES(?,?,?,?,?,?,?,?)', docId, u.store_id, nextNumber(u.store_id, 'PAY'), id, invoiceRow?.id || null, kind, JSON.stringify(doc), now());
   audit(u, 'payment', id, 'create', `${source.label}: ${amount}`);
   return { id, documentId: docId, remaining: doc.remaining };
@@ -87,7 +131,7 @@ function reversePayment(u, original, paidOn, reason) {
   run('INSERT INTO payments VALUES(?,?,?,?,?,?,?,?,?,?,?)',id,u.store_id,original.source_type,original.source_id,direction,original.amount,original.method,paidOn,`Koreksi ${original.document_number}: ${reason}`,u.id,now());
   run('INSERT INTO payment_reversals VALUES(?,?,?)',original.id,id,reason);
   const source=paymentSource(original.source_type,original.source_id,u.store_id), cumulative=paid(original.source_type,original.source_id),docId=uid();
-  const snap={store:one('SELECT name FROM stores WHERE id=?',u.store_id).name,source:source.label,invoice:original.invoice_id?one('SELECT number FROM invoices WHERE id=?',original.invoice_id)?.number:null,person:source.person||'',paidOn,amount:original.amount,method:original.method,reference:`Membatalkan ${original.document_number}: ${reason}`,cumulative,remaining:source.due-cumulative,issuer:u.name,kind:'Pembatalan pembayaran'};
+  const snap={store:one('SELECT name FROM stores WHERE id=?',u.store_id).name,source:source.label,invoice:original.invoice_id?one('SELECT number FROM invoices WHERE id=?',original.invoice_id)?.number:null,person:source.person||'',paidOn,amount:original.amount,method:original.method,reference:`Membatalkan ${original.document_number}: ${reason}`,cumulative,remaining:subtractMoney(source.due, cumulative),issuer:u.name,kind:'Pembatalan pembayaran'};
   run('INSERT INTO payment_documents VALUES(?,?,?,?,?,?,?,?)',docId,u.store_id,nextNumber(u.store_id,'PAY'),id,original.invoice_id,'Pembatalan pembayaran',JSON.stringify(snap),now());
   audit(u,'payment',original.id,'reverse',reason);
   return{id,documentId:docId};
@@ -95,49 +139,87 @@ function reversePayment(u, original, paidOn, reason) {
 }
 
 function serializeCustomer(row) {
-  const sales = all(`SELECT s.id,s.code,s.sold_on,s.price_amount-s.discount_amount amount FROM sales s WHERE s.customer_id=? ORDER BY s.sold_on DESC`, row.id).map(x => ({...x,paid:paid('sale',x.id),type:'sale',remaining:x.amount-paid('sale',x.id)}));
-  const services = all(`SELECT j.id,j.code,j.received_on,j.status,j.estimate_amount,j.part_charge+j.service_charge amount FROM service_jobs j WHERE j.customer_id=? ORDER BY j.received_on DESC`, row.id).map(x => ({...x,paid:paid('service',x.id),type:'service',remaining:x.status==='Selesai'?x.amount-paid('service',x.id):null}));
-  return { ...row, transactions:[...sales,...services], outstanding:sales.reduce((n,x)=>n+x.remaining,0)+services.filter(x=>x.status==='Selesai').reduce((n,x)=>n+x.remaining,0), advances:services.filter(x=>x.status!=='Selesai').reduce((n,x)=>n+x.paid,0) };
+  const sales = all(`SELECT s.id,s.code,s.sold_on,s.price_amount-s.discount_amount amount FROM sales s WHERE s.customer_id=? ORDER BY s.sold_on DESC`, row.id).map(x => ({...x,paid:paid('sale',x.id),type:'sale',remaining:subtractMoney(x.amount, paid('sale',x.id))}));
+  const services = all(`SELECT j.id,j.code,j.received_on,j.status,j.estimate_amount,j.part_charge+j.service_charge amount FROM service_jobs j WHERE j.customer_id=? ORDER BY j.received_on DESC`, row.id).map(x => ({...x,paid:paid('service',x.id),type:'service',remaining:x.status==='Selesai'?subtractMoney(x.amount,paid('service',x.id)):null}));
+  return { ...row, transactions:[...sales,...services], outstanding:sumMoney(sumRows(sales,x=>x.remaining),sumRows(services.filter(x=>x.status==='Selesai'),x=>x.remaining)), advances:sumRows(services.filter(x=>x.status!=='Selesai'),x=>x.paid) };
 }
+const sumRows = (rows, value) => rows.reduce((total, row) => sumMoney(total, value(row)), 0);
+const nonnegative = value => BigInt(value) > 0n ? value : 0;
+
 function dashboard(storeId) {
   const units = all('SELECT u.*,s.id sale_id FROM units u LEFT JOIN sales s ON s.unit_id=u.id WHERE u.store_id=?', storeId);
-  const sales = all('SELECT s.* FROM sales s WHERE s.store_id=?', storeId);
+  const sales = all('SELECT * FROM sales WHERE store_id=?', storeId);
   const services = all('SELECT * FROM service_jobs WHERE store_id=?', storeId);
-  const sum = (rows, f) => rows.reduce((n, x) => n + f(x), 0);
-  const unitRevenue = sum(sales, s => s.price_amount-s.discount_amount);
-  const unitCosts = sum(sales, s => s.unit_cost_snapshot+s.sale_cost_amount);
-  const serviceDone = services.filter(s=>s.status==='Selesai');
-  const serviceRevenue = sum(serviceDone, s=>s.part_charge+s.service_charge);
-  const serviceCosts = sum(serviceDone, s=>s.part_unit_cost*s.part_qty+s.technician_cost);
-  const expenses = Number(one('SELECT COALESCE(SUM(amount),0) total FROM expenses WHERE store_id=?',storeId).total);
-  const incomes = Number(one('SELECT COALESCE(SUM(amount),0) total FROM incomes WHERE store_id=?',storeId).total);
-  const losses = Number(one('SELECT COALESCE(SUM(amount),0) total FROM losses WHERE store_id=?',storeId).total);
-  const opening = one('SELECT amount FROM opening_balances WHERE store_id=?',storeId);
-  const cash = Number(opening?.amount||0)+Number(one(`SELECT COALESCE(SUM(CASE WHEN direction='IN' THEN amount ELSE -amount END),0) total FROM payments WHERE store_id=?`,storeId).total);
-  const receivables = sum(sales, s=>Math.max(0,s.price_amount-s.discount_amount-paid('sale',s.id)))+sum(serviceDone,s=>Math.max(0,s.part_charge+s.service_charge-paid('service',s.id)));
-  return { unitRevenue,serviceRevenue,incomes,totalRevenue:unitRevenue+serviceRevenue+incomes,grossProfit:unitRevenue+serviceRevenue+incomes-unitCosts-serviceCosts,netProfit:unitRevenue+serviceRevenue+incomes-unitCosts-serviceCosts-expenses-losses,expenses,losses,cash,receivables,available:units.filter(u=>!u.sale_id&&u.status==='Siap dijual').length,inProcess:units.filter(u=>!u.sale_id&&u.status!=='Siap dijual'&&u.status!=='Retur').length,inventoryValue:sum(units.filter(u=>!u.sale_id&&u.status!=='Retur'),u=>u.purchase_amount+u.repair_amount+u.extra_amount),openServices:services.filter(s=>!['Selesai','Batal'].includes(s.status)).length };
+  const completed = services.filter(row => row.status === 'Selesai');
+  const unitRevenue = sumRows(sales, row => subtractMoney(row.price_amount, row.discount_amount));
+  const unitCosts = sumRows(sales, row => sumMoney(row.unit_cost_snapshot, row.sale_cost_amount));
+  const serviceRevenue = sumRows(completed, row => sumMoney(row.part_charge, row.service_charge));
+  const serviceCosts = sumRows(completed, row => sumMoney(multiplyMoney(row.part_unit_cost, row.part_qty), row.technician_cost));
+  const expenses = sumRows(all('SELECT amount FROM expenses WHERE store_id=?', storeId), row => row.amount);
+  const incomes = sumRows(all('SELECT amount FROM incomes WHERE store_id=?', storeId), row => row.amount);
+  const losses = sumRows(all('SELECT amount FROM losses WHERE store_id=?', storeId), row => row.amount);
+  const opening = one('SELECT amount FROM opening_balances WHERE store_id=?', storeId);
+  const movements = sumRows(all('SELECT amount,direction FROM payments WHERE store_id=?', storeId), row => row.direction === 'IN' ? row.amount : subtractMoney(0, row.amount));
+  const receivables = sumMoney(
+    sumRows(sales, row => nonnegative(subtractMoney(subtractMoney(row.price_amount, row.discount_amount), paid('sale', row.id)))),
+    sumRows(completed, row => nonnegative(subtractMoney(sumMoney(row.part_charge, row.service_charge), paid('service', row.id))))
+  );
+  const totalRevenue = sumMoney(unitRevenue, serviceRevenue, incomes);
+  const grossProfit = subtractMoney(subtractMoney(totalRevenue, unitCosts), serviceCosts);
+  return {
+    unitRevenue, serviceRevenue, incomes, expenses, losses, receivables, totalRevenue, grossProfit,
+    netProfit: subtractMoney(subtractMoney(grossProfit, expenses), losses),
+    cash: sumMoney(opening?.amount || 0, movements),
+    available: units.filter(row => !row.sale_id && row.status === 'Siap dijual').length,
+    inProcess: units.filter(row => !row.sale_id && !['Siap dijual','Retur'].includes(row.status)).length,
+    inventoryValue: sumRows(units.filter(row => !row.sale_id && row.status !== 'Retur'), row => sumMoney(row.purchase_amount, row.repair_amount, row.extra_amount)),
+    openServices: services.filter(row => !['Selesai','Batal'].includes(row.status)).length,
+  };
 }
+
 function monthlyReport(storeId, year) {
-  const sales=all('SELECT * FROM sales WHERE store_id=?',storeId), services=all('SELECT * FROM service_jobs WHERE store_id=?',storeId), units=all('SELECT u.*,s.sold_on,r.returned_on FROM units u LEFT JOIN sales s ON s.unit_id=u.id LEFT JOIN unit_returns r ON r.unit_id=u.id WHERE u.store_id=?',storeId);
-  const expenses=all('SELECT * FROM expenses WHERE store_id=?',storeId), incomes=all('SELECT * FROM incomes WHERE store_id=?',storeId), losses=all('SELECT * FROM losses WHERE store_id=?',storeId);
-  const payments=all(`
-    SELECT p.* FROM payments p
-    WHERE p.store_id=? AND NOT EXISTS (
-      SELECT 1 FROM payment_corrections c
-      JOIN payment_reversals r ON r.original_payment_id=c.original_payment_id
-      WHERE p.id IN (r.original_payment_id, r.reversal_payment_id)
-    )
-  `,storeId);
-  const sum=(rows,fn)=>rows.reduce((n,x)=>n+fn(x),0), opening=one('SELECT * FROM opening_balances WHERE store_id=?',storeId);
-  return Array.from({length:12},(_,i)=>{ const month=`${year}-${String(i+1).padStart(2,'0')}`,end=new Date(Date.UTC(year,i+1,0)).toISOString().slice(0,10);
-    const sm=sales.filter(x=>x.sold_on.startsWith(month)), jm=services.filter(x=>x.status==='Selesai'&&x.completed_on?.startsWith(month));
-    const unitRevenue=sum(sm,x=>x.price_amount-x.discount_amount),serviceRevenue=sum(jm,x=>x.part_charge+x.service_charge),otherIncome=sum(incomes.filter(x=>x.happened_on.startsWith(month)),x=>x.amount);
-    const unitCost=sum(sm,x=>x.unit_cost_snapshot+x.sale_cost_amount),serviceCost=sum(jm,x=>x.part_unit_cost*x.part_qty+x.technician_cost),expense=sum(expenses.filter(x=>x.happened_on.startsWith(month)),x=>x.amount),loss=sum(losses.filter(x=>x.happened_on.startsWith(month)),x=>x.amount);
-    const cashIn=sum(payments.filter(x=>x.paid_on.startsWith(month)&&x.direction==='IN'),x=>x.amount),cashOut=sum(payments.filter(x=>x.paid_on.startsWith(month)&&x.direction==='OUT'),x=>x.amount);
-    const cashToDate=sum(payments.filter(x=>x.paid_on<=end),x=>x.direction==='IN'?x.amount:-x.amount);
-    const inventory=sum(units.filter(x=>x.intake_date<=end&&(!x.returned_on||x.returned_on>end)&&(!x.sold_on||x.sold_on>end)),x=>x.purchase_amount+x.repair_amount+x.extra_amount);
-    return {month,unitRevenue,serviceRevenue,otherIncome,totalRevenue:unitRevenue+serviceRevenue+otherIncome,unitCost,serviceCost,grossProfit:unitRevenue+serviceRevenue+otherIncome-unitCost-serviceCost,expense,loss,netProfit:unitRevenue+serviceRevenue+otherIncome-unitCost-serviceCost-expense-loss,cashIn,cashOut,closingCash:(opening&&opening.effective_on<=end?opening.amount:0)+cashToDate,inventory};
+  const sales = all('SELECT * FROM sales WHERE store_id=?', storeId);
+  const services = all('SELECT * FROM service_jobs WHERE store_id=?', storeId);
+  const units = all('SELECT u.*,s.sold_on,r.returned_on FROM units u LEFT JOIN sales s ON s.unit_id=u.id LEFT JOIN unit_returns r ON r.unit_id=u.id WHERE u.store_id=?', storeId);
+  const expenses = all('SELECT * FROM expenses WHERE store_id=?', storeId);
+  const incomes = all('SELECT * FROM incomes WHERE store_id=?', storeId);
+  const losses = all('SELECT * FROM losses WHERE store_id=?', storeId);
+  const payments = all('SELECT p.* FROM payments p WHERE p.store_id=? AND NOT EXISTS (SELECT 1 FROM payment_corrections c JOIN payment_reversals r ON r.original_payment_id=c.original_payment_id WHERE p.id IN (r.original_payment_id,r.reversal_payment_id))', storeId);
+  const opening = one('SELECT * FROM opening_balances WHERE store_id=?', storeId);
+  return Array.from({ length: 12 }, (_, index) => {
+    const month = String(year).padStart(4, '0') + '-' + String(index + 1).padStart(2, '0');
+    const endDate = new Date(month + '-01T00:00:00Z');
+    endDate.setUTCMonth(endDate.getUTCMonth() + 1, 0);
+    const end = endDate.toISOString().slice(0, 10);
+    const sold = sales.filter(row => row.sold_on.startsWith(month));
+    const completed = services.filter(row => row.status === 'Selesai' && row.completed_on?.startsWith(month));
+    const unitRevenue = sumRows(sold, row => subtractMoney(row.price_amount, row.discount_amount));
+    const serviceRevenue = sumRows(completed, row => sumMoney(row.part_charge, row.service_charge));
+    const otherIncome = sumRows(incomes.filter(row => row.happened_on.startsWith(month)), row => row.amount);
+    const unitCost = sumRows(sold, row => sumMoney(row.unit_cost_snapshot, row.sale_cost_amount));
+    const serviceCost = sumRows(completed, row => sumMoney(multiplyMoney(row.part_unit_cost, row.part_qty), row.technician_cost));
+    const expense = sumRows(expenses.filter(row => row.happened_on.startsWith(month)), row => row.amount);
+    const loss = sumRows(losses.filter(row => row.happened_on.startsWith(month)), row => row.amount);
+    const cashIn = sumRows(payments.filter(row => row.paid_on.startsWith(month) && row.direction === 'IN'), row => row.amount);
+    const cashOut = sumRows(payments.filter(row => row.paid_on.startsWith(month) && row.direction === 'OUT'), row => row.amount);
+    const cashToDate = sumRows(payments.filter(row => row.paid_on <= end), row => row.direction === 'IN' ? row.amount : subtractMoney(0, row.amount));
+    const inventory = sumRows(units.filter(row => row.intake_date <= end && (!row.returned_on || row.returned_on > end) && (!row.sold_on || row.sold_on > end)), row => sumMoney(row.purchase_amount, row.repair_amount, row.extra_amount));
+    const totalRevenue = sumMoney(unitRevenue, serviceRevenue, otherIncome);
+    const grossProfit = subtractMoney(subtractMoney(totalRevenue, unitCost), serviceCost);
+    return {month,unitRevenue,serviceRevenue,otherIncome,totalRevenue,unitCost,serviceCost,grossProfit,expense,loss,
+      netProfit: subtractMoney(subtractMoney(grossProfit, expense), loss), cashIn, cashOut,
+      closingCash: sumMoney(opening && opening.effective_on <= end ? opening.amount : 0, cashToDate), inventory};
   });
+}
+
+function reportYears(storeId, selectedYear) {
+  const fields = [['opening_balances','effective_on'],['units','intake_date'],['sales','sold_on'],
+    ['service_jobs','received_on'],['service_jobs','completed_on'],['payments','paid_on'],
+    ['expenses','happened_on'],['incomes','happened_on'],['losses','happened_on']];
+  const query = fields.map(([table, field]) => 'SELECT substr(' + field + ',1,4) year FROM ' + table + ' WHERE store_id=? AND ' + field + ' IS NOT NULL').join(' UNION ');
+  const years = all(query, ...fields.map(() => storeId)).map(row => Number(row.year));
+  const current = Number(new Intl.DateTimeFormat('en', {timeZone:'Asia/Jakarta',year:'numeric'}).format(new Date()));
+  return [...new Set([...years, selectedYear, current])].sort((a, b) => b - a);
 }
 const esc = value => String(value ?? '').replace(/[&<>"']/g, x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 function documentHtml(u, type, id) {
@@ -149,8 +231,8 @@ function documentHtml(u, type, id) {
   if (u.role==='service' && source!=='service') throw bad('Akses tidak diizinkan.',403);
   const d=JSON.parse(row.snapshot), title=type==='payment'?d.kind:'Invoice';
   const entries=type==='payment'?[['Pelanggan / pihak',d.person],['Transaksi',d.source],['Invoice',d.invoice||'Uang muka'],['Tanggal bayar',d.paidOn],['Metode',d.method],['Referensi',d.reference||'—'],['Pembayaran ini',d.amount],['Total dibayar',d.cumulative],['Sisa',d.remaining],['Petugas',d.issuer]]:[['Pelanggan',d.person],['Transaksi',d.source],['Tanggal',d.date],['Total tagihan',d.amount]];
-  const format=v=>typeof v==='number'?`Rp ${new Intl.NumberFormat('id-ID').format(v)}`:esc(v);
-  return `<!doctype html><html lang="id"><head><meta charset="utf-8"><title>${esc(title)} ${esc(row.number)}</title><style>body{font:16px/1.5 Segoe UI,sans-serif;max-width:720px;margin:40px auto;color:#111}header{border-bottom:2px solid #111;padding-bottom:18px}h1{font-size:28px}table{width:100%;border-collapse:collapse;margin-top:28px}td{padding:10px;border-bottom:1px solid #ddd}td:last-child{text-align:right;font-weight:600}button{padding:10px 16px;margin-top:30px}@media print{button{display:none}body{margin:0}}</style></head><body><header><strong>${esc(d.store)}</strong><h1>${esc(title)}</h1><div>No. ${esc(row.number)}</div></header><table>${entries.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${format(v)}</td></tr>`).join('')}</table><p>Dokumen diterbitkan ${esc(row.issued_at.slice(0,10))}.</p><button onclick="print()">Cetak / Simpan PDF</button></body></html>`;
+  const format=(value,label)=>['Pembayaran ini','Total dibayar','Sisa','Total tagihan'].includes(label)?formatMoney(value):esc(value);
+  return `<!doctype html><html lang="id"><head><meta charset="utf-8"><title>${esc(title)} ${esc(row.number)}</title><style>body{font:16px/1.5 Segoe UI,sans-serif;max-width:720px;margin:40px auto;color:#111}header{border-bottom:2px solid #111;padding-bottom:18px}h1{font-size:28px}table{width:100%;border-collapse:collapse;margin-top:28px}td{padding:10px;border-bottom:1px solid #ddd}td:last-child{text-align:right;font-weight:600}button{padding:10px 16px;margin-top:30px}@media print{button{display:none}body{margin:0}}</style></head><body><header><strong>${esc(d.store)}</strong><h1>${esc(title)}</h1><div>No. ${esc(row.number)}</div></header><table>${entries.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${format(v,k)}</td></tr>`).join('')}</table><p>Dokumen diterbitkan ${esc(row.issued_at.slice(0,10))}.</p><button onclick="print()">Cetak / Simpan PDF</button></body></html>`;
 }
 
 async function api(req,res,url) {
@@ -160,25 +242,45 @@ async function api(req,res,url) {
   if (method==='POST'&&path==='/api/login') { const b=await bodyOf(req), username=String(b.username||'').trim().toLowerCase(), key=`${req.socket.remoteAddress}:${username}`, previous=loginFailures.get(key), fail=previous&&Date.now()-previous.since<15*60_000?previous:null; if(fail&&fail.count>=5) throw bad('Terlalu banyak percobaan. Coba lagi nanti.',429); const u=one('SELECT * FROM users WHERE username=? AND active=1',username); if(!u||!verifyPassword(String(b.password||''),u.password_hash)) { loginFailures.set(key,{count:(fail?.count||0)+1,since:fail?.since||Date.now()}); throw bad('Username atau kata sandi salah.',401); } loginFailures.delete(key); const token=randomBytes(32).toString('hex'); run('INSERT INTO sessions VALUES(?,?,?,?)',hash(token),u.id,new Date(Date.now()+604800000).toISOString(),now()); return json(res,200,{ok:true},{'Set-Cookie':sessionCookie(req,token)}); }
   if (method==='POST'&&path==='/api/logout') { const token=cookie(req,'tk_session'); if(token) run('DELETE FROM sessions WHERE token_hash=?',hash(token)); return json(res,200,{ok:true},{'Set-Cookie':'tk_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'}); }
   const u=needUser(req);
+  if(method==='POST'&&path==='/api/search') {
+    const b=await bodyOf(req);
+    if(typeof b?.query!=='string'||!b.query.trim()||b.query.length>300) throw bad('Masukkan pencarian sepanjang 1 sampai 300 karakter.');
+    const offset=b.offset??0;
+    if(!Number.isSafeInteger(offset)||offset<0) throw bad('Halaman pencarian tidak valid.');
+    const result=await searchRecords({query:b.query.trim(),offset,role:u.role,
+      read:async scope=>{
+        let data;
+        await api({method:'GET',headers:req.headers}, {writeHead(status){if(status!==200)throw bad('Pencarian gagal.',status);},end(body){data=JSON.parse(body);}},new URL('/api/'+scope,'http://localhost'));
+        return data;
+      }
+    });
+    return json(res,200,result);
+  }
   if(method==='GET'&&path==='/api/me') return json(res,200,{id:u.id,name:u.name,role:u.role,store:one('SELECT name FROM stores WHERE id=?',u.store_id).name});
   if(method==='GET'&&path==='/api/dashboard') { needRole(u,['owner']); return json(res,200,dashboard(u.store_id)); }
-  if(method==='GET'&&path==='/api/reports') { needRole(u,['owner']); const year=Number(url.searchParams.get('year')||new Date().getFullYear()); if(!Number.isInteger(year)||year<2000||year>2100) throw bad('Tahun laporan tidak valid.'); return json(res,200,{year,months:monthlyReport(u.store_id,year)}); }
+  if (method === 'GET' && path === '/api/reports') {
+    needRole(u, ['owner']);
+    const current = new Intl.DateTimeFormat('en', {timeZone:'Asia/Jakarta',year:'numeric'}).format(new Date());
+    const year = Number(url.searchParams.get('year') ?? current);
+    if (!Number.isInteger(year) || year < 0 || year > 9999) throw bad('Tahun laporan tidak valid.');
+    return json(res, 200, {year, years:reportYears(u.store_id,year), months:monthlyReport(u.store_id,year)});
+  }
   if(method==='GET'&&path==='/api/opening') { needRole(u,['owner']); return json(res,200,one('SELECT * FROM opening_balances WHERE store_id=?',u.store_id)); }
   if(method==='POST'&&path==='/api/opening') { needRole(u,['owner']); const b=await bodyOf(req), amount=money(b.amount), effective=date(b.effectiveOn); tx(()=>{run('UPDATE opening_balances SET amount=?,effective_on=? WHERE store_id=?',amount,effective,u.store_id);audit(u,'opening_balance',u.store_id,'update',`${effective}: ${amount}`);}); return json(res,200,{ok:true}); }
   if(method==='GET'&&path==='/api/customers') return json(res,200,all('SELECT * FROM customers WHERE store_id=? ORDER BY created_at DESC',u.store_id).map(serializeCustomer));
   if(method==='POST'&&path==='/api/customers') { const b=await bodyOf(req), id=uid(); const name=required(b.name,'Nama pelanggan'), phone=String(b.phone||'').replace(/[^\d+]/g,''); run('INSERT INTO customers VALUES(?,?,?,?,?,?)',id,u.store_id,name,phone,String(b.notes||''),now()); audit(u,'customer',id,'create'); return json(res,201,{id}); }
-  if(method==='GET'&&path==='/api/units') return json(res,200,all('SELECT u.*,s.id sale_id FROM units u LEFT JOIN sales s ON s.unit_id=u.id WHERE u.store_id=? ORDER BY u.created_at DESC',u.store_id).map(x=>u.role==='owner'?({...x,total_cost:x.purchase_amount+x.repair_amount+x.extra_amount,paid:paid('unit',x.id)}):({id:x.id,code:x.code,category:x.category,model:x.model,specs:x.specs,status:x.status,sale_id:x.sale_id})));
+  if(method==='GET'&&path==='/api/units') return json(res,200,all('SELECT u.*,s.id sale_id FROM units u LEFT JOIN sales s ON s.unit_id=u.id WHERE u.store_id=? ORDER BY u.created_at DESC',u.store_id).map(x=>u.role==='owner'?({...x,total_cost:sumMoney(x.purchase_amount,x.repair_amount,x.extra_amount),paid:paid('unit',x.id)}):({id:x.id,code:x.code,category:x.category,model:x.model,specs:x.specs,status:x.status,sale_id:x.sale_id})));
   if(method==='POST'&&path==='/api/units') { needRole(u,['owner']); const b=await bodyOf(req), id=uid(), code=required(b.code,'Kode unit'); if(!['Laptop','HP'].includes(b.category)) throw bad('Kategori tidak valid.'); const status=b.status||'Belum dikerjakan'; if(!['Belum dikerjakan','Dalam perbaikan','Menunggu sparepart','Minus / rusak','Siap dijual','Retur'].includes(status)) throw bad('Status tidak valid.'); tx(()=>{run('INSERT INTO units VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',id,u.store_id,code,b.category,required(b.model,'Model'),String(b.specs||''),String(b.supplier||''),date(b.intakeDate),money(b.purchaseAmount),money(b.repairAmount||0),money(b.extraAmount||0),money(b.targetAmount||0),status,String(b.notes||''),now());if(status==='Retur')run('INSERT INTO unit_returns VALUES(?,?)',id,b.intakeDate);audit(u,'unit',id,'create');}); return json(res,201,{id}); }
   const unitMatch=path.match(/^\/api\/units\/([^/]+)\/status$/);
   if(method==='PATCH'&&unitMatch) { needRole(u,['owner']); const b=await bodyOf(req), x=one('SELECT * FROM units WHERE id=? AND store_id=?',unitMatch[1],u.store_id); if(!x) throw bad('Unit tidak ditemukan.',404); if(one('SELECT id FROM sales WHERE unit_id=?',x.id)) throw bad('Unit sudah terjual.'); if(x.status==='Retur') throw bad('Unit retur memerlukan koreksi untuk dibuka kembali.'); if(!['Belum dikerjakan','Dalam perbaikan','Menunggu sparepart','Minus / rusak','Siap dijual','Retur'].includes(b.status)) throw bad('Status tidak valid.'); tx(()=>{run('UPDATE units SET status=? WHERE id=?',b.status,x.id);if(b.status==='Retur')run('INSERT INTO unit_returns VALUES(?,?)',x.id,date(b.returnedOn||new Date().toISOString().slice(0,10)));audit(u,'unit',x.id,'status',`${x.status} → ${b.status}`);}); return json(res,200,{ok:true}); }
-  if(method==='GET'&&path==='/api/sales') { needRole(u,['owner','cashier']); return json(res,200,all(`SELECT s.*,u.code unit_code,u.model,c.name customer_name,i.id invoice_id,i.number invoice_number FROM sales s JOIN units u ON u.id=s.unit_id LEFT JOIN customers c ON c.id=s.customer_id LEFT JOIN invoices i ON i.source_type='sale' AND i.source_id=s.id WHERE s.store_id=? ORDER BY s.created_at DESC`,u.store_id).map(x=>{const result={...x,paid:paid('sale',x.id),remaining:x.price_amount-x.discount_amount-paid('sale',x.id)};if(u.role!=='owner'){delete result.unit_cost_snapshot;delete result.sale_cost_amount;}return result;})); }
-  if(method==='POST'&&path==='/api/sales') { needRole(u,['owner','cashier']); const b=await bodyOf(req); const result=tx(()=>{ const unit=one('SELECT * FROM units WHERE id=? AND store_id=?',b.unitId,u.store_id); if(!unit) throw bad('Unit tidak ditemukan.'); if(unit.status!=='Siap dijual'||one('SELECT id FROM sales WHERE unit_id=?',unit.id)) throw bad('Unit belum siap atau sudah terjual.'); const price=money(b.price), discount=money(b.discount||0), saleCost=money(b.saleCost||0), initial=money(b.initialPayment||0); if(discount>price||initial>price-discount) throw bad('Diskon atau pembayaran melebihi harga.'); const customer=b.customerId?one('SELECT * FROM customers WHERE id=? AND store_id=?',b.customerId,u.store_id):null; if((price-discount-initial)>0&&!customer?.phone) throw bad('Pelanggan dengan nomor HP wajib untuk transaksi DP atau belum bayar.'); const id=uid(), code=required(b.code,'ID penjualan'), buyer=customer?.name||String(b.buyerName||''); run('INSERT INTO sales VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',id,u.store_id,code,unit.id,customer?.id||null,buyer,date(b.soldOn),price,discount,saleCost,unit.purchase_amount+unit.repair_amount+unit.extra_amount,now()); invoice(u.store_id,'sale',id,price-discount,{store:one('SELECT name FROM stores WHERE id=?',u.store_id).name,source:code,person:buyer,date:b.soldOn,amount:price-discount}); audit(u,'sale',id,'create'); if(initial) postPayment(u,{sourceType:'sale',sourceId:id,amount:initial,method:b.method,paidOn:b.soldOn}); return {id}; }); return json(res,201,result); }
-  if(method==='GET'&&path==='/api/services') { needRole(u,['owner','service']); return json(res,200,all(`SELECT j.*,c.name customer_name,i.id invoice_id,i.number invoice_number FROM service_jobs j JOIN customers c ON c.id=j.customer_id LEFT JOIN invoices i ON i.source_type='service' AND i.source_id=j.id WHERE j.store_id=? ORDER BY j.created_at DESC`,u.store_id).map(x=>({...x,paid:paid('service',x.id),remaining:x.status==='Selesai'?x.part_charge+x.service_charge-paid('service',x.id):null}))); }
+  if(method==='GET'&&path==='/api/sales') { needRole(u,['owner','cashier']); return json(res,200,all(`SELECT s.*,u.code unit_code,u.model,c.name customer_name,i.id invoice_id,i.number invoice_number FROM sales s JOIN units u ON u.id=s.unit_id LEFT JOIN customers c ON c.id=s.customer_id LEFT JOIN invoices i ON i.source_type='sale' AND i.source_id=s.id WHERE s.store_id=? ORDER BY s.created_at DESC`,u.store_id).map(x=>{const result={...x,paid:paid('sale',x.id),remaining:subtractMoney(subtractMoney(x.price_amount,x.discount_amount),paid('sale',x.id))};if(u.role!=='owner'){delete result.unit_cost_snapshot;delete result.sale_cost_amount;}return result;})); }
+  if(method==='POST'&&path==='/api/sales') { needRole(u,['owner','cashier']); const b=await bodyOf(req); const result=tx(()=>{ const unit=one('SELECT * FROM units WHERE id=? AND store_id=?',b.unitId,u.store_id); if(!unit) throw bad('Unit tidak ditemukan.'); if(unit.status!=='Siap dijual'||one('SELECT id FROM sales WHERE unit_id=?',unit.id)) throw bad('Unit belum siap atau sudah terjual.'); const price=money(b.price), discount=money(b.discount||0), saleCost=money(b.saleCost||0), initial=money(b.initialPayment||0); if(discount>price||initial>price-discount) throw bad('Diskon atau pembayaran melebihi harga.'); const customer=b.customerId?one('SELECT * FROM customers WHERE id=? AND store_id=?',b.customerId,u.store_id):null; if((price-discount-initial)>0&&!customer?.phone) throw bad('Pelanggan dengan nomor HP wajib untuk transaksi DP atau belum bayar.'); const id=uid(), code=required(b.code,'ID penjualan'), buyer=customer?.name||String(b.buyerName||''); run('INSERT INTO sales VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',id,u.store_id,code,unit.id,customer?.id||null,buyer,date(b.soldOn),price,discount,saleCost,storedMoney(sumMoney(unit.purchase_amount,unit.repair_amount,unit.extra_amount)),now()); invoice(u.store_id,'sale',id,price-discount,{store:one('SELECT name FROM stores WHERE id=?',u.store_id).name,source:code,person:buyer,date:b.soldOn,amount:price-discount}); audit(u,'sale',id,'create'); if(initial) postPayment(u,{sourceType:'sale',sourceId:id,amount:initial,method:b.method,paidOn:b.soldOn}); return {id}; }); return json(res,201,result); }
+  if(method==='GET'&&path==='/api/services') { needRole(u,['owner','service']); return json(res,200,all(`SELECT j.*,c.name customer_name,i.id invoice_id,i.number invoice_number FROM service_jobs j JOIN customers c ON c.id=j.customer_id LEFT JOIN invoices i ON i.source_type='service' AND i.source_id=j.id WHERE j.store_id=? ORDER BY j.created_at DESC`,u.store_id).map(x=>({...x,paid:paid('service',x.id),remaining:x.status==='Selesai'?subtractMoney(sumMoney(x.part_charge,x.service_charge),paid('service',x.id)):null}))); }
   if(method==='POST'&&path==='/api/services') { needRole(u,['owner','service']); const b=await bodyOf(req), customer=one('SELECT * FROM customers WHERE id=? AND store_id=?',b.customerId,u.store_id); if(!customer) throw bad('Pelanggan wajib dipilih.'); const id=uid(); run('INSERT INTO service_jobs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',id,u.store_id,required(b.code,'ID servis'),customer.id,date(b.receivedOn),null,required(b.category,'Kategori'),required(b.model,'Model'),required(b.complaint,'Keluhan'),String(b.partCode||''),money(b.partUnitCost||0),money(b.partQty||0),money(b.partCharge||0),money(b.serviceCharge||0),money(b.technicianCost||0),money(b.estimateAmount||0),'Diterima',String(b.notes||''),now()); audit(u,'service',id,'create'); return json(res,201,{id}); }
   const serviceEdit=path.match(/^\/api\/services\/([^/]+)$/);
   if(method==='PATCH'&&serviceEdit) { needRole(u,['owner','service']); const b=await bodyOf(req),job=one('SELECT * FROM service_jobs WHERE id=? AND store_id=?',serviceEdit[1],u.store_id);if(!job)throw bad('Servis tidak ditemukan.',404);if(['Selesai','Batal'].includes(job.status))throw bad('Servis sudah ditutup.');const estimate=money(b.estimateAmount),partUnitCost=money(b.partUnitCost),partQty=money(b.partQty),partCharge=money(b.partCharge),serviceCharge=money(b.serviceCharge),technicianCost=money(b.technicianCost);if(estimate<paid('service',job.id))throw bad('Estimasi tidak boleh lebih kecil dari DP yang diterima.');tx(()=>{run('UPDATE service_jobs SET estimate_amount=?,part_code=?,part_unit_cost=?,part_qty=?,part_charge=?,service_charge=?,technician_cost=?,notes=? WHERE id=?',estimate,String(b.partCode||''),partUnitCost,partQty,partCharge,serviceCharge,technicianCost,String(b.notes||''),job.id);audit(u,'service',job.id,'edit','Estimasi atau biaya diperbarui');});return json(res,200,{ok:true}); }
   const serviceMatch=path.match(/^\/api\/services\/([^/]+)\/status$/);
-  if(method==='PATCH'&&serviceMatch) { needRole(u,['owner','service']); const b=await bodyOf(req); const result=tx(()=>{ const job=one('SELECT j.*,c.name customer_name FROM service_jobs j JOIN customers c ON c.id=j.customer_id WHERE j.id=? AND j.store_id=?',serviceMatch[1],u.store_id); if(!job) throw bad('Servis tidak ditemukan.',404); if(['Selesai','Batal'].includes(job.status)) throw bad('Servis sudah ditutup.'); if(!['Dalam pengerjaan','Menunggu sparepart','Selesai','Batal'].includes(b.status)) throw bad('Status tidak valid.'); if(b.status==='Batal'&&paid('service',job.id)>0) throw bad('DP harus diselesaikan pemilik sebelum pembatalan.'); run('UPDATE service_jobs SET status=?,completed_on=? WHERE id=?',b.status,b.status==='Selesai'?date(b.completedOn):null,job.id); if(b.status==='Selesai') { const amount=job.part_charge+job.service_charge; if(paid('service',job.id)>amount) throw bad('DP melebihi invoice akhir. Perlu koreksi pemilik.'); invoice(u.store_id,'service',job.id,amount,{store:one('SELECT name FROM stores WHERE id=?',u.store_id).name,source:job.code,person:job.customer_name,date:b.completedOn,amount}); } audit(u,'service',job.id,'status',`${job.status} → ${b.status}`); return {ok:true}; }); return json(res,200,result); }
+  if(method==='PATCH'&&serviceMatch) { needRole(u,['owner','service']); const b=await bodyOf(req); const result=tx(()=>{ const job=one('SELECT j.*,c.name customer_name FROM service_jobs j JOIN customers c ON c.id=j.customer_id WHERE j.id=? AND j.store_id=?',serviceMatch[1],u.store_id); if(!job) throw bad('Servis tidak ditemukan.',404); if(['Selesai','Batal'].includes(job.status)) throw bad('Servis sudah ditutup.'); if(!['Dalam pengerjaan','Menunggu sparepart','Selesai','Batal'].includes(b.status)) throw bad('Status tidak valid.'); if(b.status==='Batal'&&paid('service',job.id)>0) throw bad('DP harus diselesaikan pemilik sebelum pembatalan.'); run('UPDATE service_jobs SET status=?,completed_on=? WHERE id=?',b.status,b.status==='Selesai'?date(b.completedOn):null,job.id); if(b.status==='Selesai') { const amount=storedMoney(sumMoney(job.part_charge,job.service_charge)); if(paid('service',job.id)>amount) throw bad('DP melebihi invoice akhir. Perlu koreksi pemilik.'); invoice(u.store_id,'service',job.id,amount,{store:one('SELECT name FROM stores WHERE id=?',u.store_id).name,source:job.code,person:job.customer_name,date:b.completedOn,amount}); } audit(u,'service',job.id,'status',`${job.status} → ${b.status}`); return {ok:true}; }); return json(res,200,result); }
   if(method==='GET'&&path==='/api/payments') return json(res,200,all('SELECT p.*,d.id document_id,d.number document_number,d.kind,d.snapshot,r.reversal_payment_id reversed_by,r.reason correction_reason,origin.number original_document_number FROM payments p JOIN payment_documents d ON d.payment_id=p.id LEFT JOIN payment_reversals r ON r.original_payment_id=p.id LEFT JOIN payment_reversals correction ON correction.reversal_payment_id=p.id LEFT JOIN payment_documents origin ON origin.payment_id=correction.original_payment_id WHERE p.store_id=? ORDER BY p.created_at DESC',u.store_id).filter(x=>u.role==='owner'||x.source_type===(u.role==='cashier'?'sale':'service')).map(({ snapshot, ...row }) => ({ ...row, details: JSON.parse(snapshot) })));
   if(method==='POST'&&path==='/api/payments') { const b=await bodyOf(req); needRole(u,b.sourceType==='sale'?['owner','cashier']:b.sourceType==='service'?['owner','service']:['owner']); const result=tx(()=>postPayment(u,b)); return json(res,201,result); }
   const paymentChange = path.match(/^\/api\/payments\/([^/]+)\/(reverse|correct)$/);
@@ -200,7 +302,7 @@ async function api(req,res,url) {
     return json(res, 201, result);
   }
   const finMap={expenses:['expenses','OUT'],incomes:['incomes','IN'],losses:['losses','OUT']};
-  if(finMap[path.slice(5)]) { const [table]=finMap[path.slice(5)]; if(method==='GET') { needRole(u,['owner']); const type=table==='expenses'?'expense':table==='incomes'?'income':'loss';return json(res,200,all(`SELECT * FROM ${table} WHERE store_id=? ORDER BY created_at DESC`,u.store_id).map(x=>({...x,paid:paid(type,x.id),remaining:x.amount-paid(type,x.id)}))); } if(method==='POST') { needRole(u,['owner']); const b=await bodyOf(req), id=uid(); run(`INSERT INTO ${table} VALUES(?,?,?,?,?,?,?,?)`,id,u.store_id,required(b.code,'ID transaksi'),date(b.happenedOn),required(b.category,'Kategori'),required(b.description,'Deskripsi'),money(b.amount),now()); audit(u,table,id,'create'); return json(res,201,{id}); } }
+  if(finMap[path.slice(5)]) { const [table]=finMap[path.slice(5)]; if(method==='GET') { needRole(u,['owner']); const type=table==='expenses'?'expense':table==='incomes'?'income':'loss';return json(res,200,all(`SELECT * FROM ${table} WHERE store_id=? ORDER BY created_at DESC`,u.store_id).map(x=>({...x,paid:paid(type,x.id),remaining:subtractMoney(x.amount,paid(type,x.id))}))); } if(method==='POST') { needRole(u,['owner']); const b=await bodyOf(req), id=uid(); run(`INSERT INTO ${table} VALUES(?,?,?,?,?,?,?,?)`,id,u.store_id,required(b.code,'ID transaksi'),date(b.happenedOn),required(b.category,'Kategori'),required(b.description,'Deskripsi'),money(b.amount),now()); audit(u,table,id,'create'); return json(res,201,{id}); } }
   if(method==='GET'&&path==='/api/audit') { needRole(u,['owner']); return json(res,200,all('SELECT a.*,u.name actor_name FROM audit a JOIN users u ON u.id=a.actor_id WHERE a.store_id=? ORDER BY a.created_at DESC LIMIT 300',u.store_id)); }
   if(method==='GET'&&path==='/api/users') { needRole(u,['owner']); return json(res,200,all('SELECT id,username,name,role,active FROM users WHERE store_id=? ORDER BY created_at',u.store_id)); }
   if(method==='POST'&&path==='/api/users') { needRole(u,['owner']); const b=await bodyOf(req), id=uid(), pass=required(b.password,'Kata sandi'); if(pass.length<10) throw bad('Kata sandi minimal 10 karakter.'); if(!['owner','cashier','service'].includes(b.role)) throw bad('Peran tidak valid.'); run('INSERT INTO users VALUES(?,?,?,?,?,?,?,?)',id,u.store_id,required(b.username,'Username').toLowerCase(),required(b.name,'Nama'),b.role,passwordHash(pass),1,now()); audit(u,'user',id,'create'); return json(res,201,{id}); }
@@ -217,4 +319,4 @@ const server=http.createServer(async(req,res)=>{ try { const host=req.headers.ho
     if(url.pathname==='/document') { const u=needUser(req), content=documentHtml(u,url.searchParams.get('type'),url.searchParams.get('id')); res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}); return res.end(content); }
     const path=url.pathname==='/'?'/index.html':url.pathname; if(!/^\/[\w.-]+$/.test(path)) throw bad('Tidak ditemukan.',404); const file=join(root,'public',path.slice(1)); const content=readFileSync(file); res.writeHead(200,{'Content-Type':mime[extname(file)]||'application/octet-stream','Cache-Control':'no-store'}); res.end(content);
   } catch(e) { if(e.code==='ENOENT') return json(res,404,{error:'Halaman tidak ditemukan.'}); const duplicate=String(e.message).includes('UNIQUE constraint'); json(res,e.status|| (duplicate?409:500),{error:duplicate?'Kode sudah digunakan.':e.status?e.message:'Terjadi kesalahan server.'}); if(!e.status&&!duplicate) console.error(e); } });
-const port=Number(process.env.PORT||3000); server.listen(port,process.env.HOST||'127.0.0.1',()=>console.log(`TechKasir running at http://${process.env.HOST||'127.0.0.1'}:${port}`));
+const port=Number(process.env.PORT||3000); server.listen(port,process.env.HOST||'127.0.0.1',()=>console.log(`TechKasir running at http://${process.env.HOST||'127.0.0.1'}:${server.address().port}`));

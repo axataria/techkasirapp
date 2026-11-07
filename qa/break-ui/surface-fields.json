@@ -1,0 +1,1602 @@
+[
+  {
+    "endpoint": "me",
+    "path": "id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/me -> id"
+  },
+  {
+    "endpoint": "me",
+    "path": "name",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/me -> name"
+  },
+  {
+    "endpoint": "me",
+    "path": "role",
+    "type": "string",
+    "limit": "enum/context dependent; see source schema and badge map",
+    "optional": false,
+    "source": "/api/me -> role"
+  },
+  {
+    "endpoint": "me",
+    "path": "store",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/me -> store"
+  },
+  {
+    "endpoint": "dashboard",
+    "path": "unitRevenue",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/dashboard -> unitRevenue"
+  },
+  {
+    "endpoint": "dashboard",
+    "path": "serviceRevenue",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/dashboard -> serviceRevenue"
+  },
+  {
+    "endpoint": "dashboard",
+    "path": "incomes",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/dashboard -> incomes"
+  },
+  {
+    "endpoint": "dashboard",
+    "path": "totalRevenue",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/dashboard -> totalRevenue"
+  },
+  {
+    "endpoint": "dashboard",
+    "path": "grossProfit",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/dashboard -> grossProfit"
+  },
+  {
+    "endpoint": "dashboard",
+    "path": "netProfit",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/dashboard -> netProfit"
+  },
+  {
+    "endpoint": "dashboard",
+    "path": "expenses",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/dashboard -> expenses"
+  },
+  {
+    "endpoint": "dashboard",
+    "path": "losses",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/dashboard -> losses"
+  },
+  {
+    "endpoint": "dashboard",
+    "path": "cash",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/dashboard -> cash"
+  },
+  {
+    "endpoint": "dashboard",
+    "path": "receivables",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/dashboard -> receivables"
+  },
+  {
+    "endpoint": "dashboard",
+    "path": "available",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/dashboard -> available"
+  },
+  {
+    "endpoint": "dashboard",
+    "path": "inProcess",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/dashboard -> inProcess"
+  },
+  {
+    "endpoint": "dashboard",
+    "path": "inventoryValue",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/dashboard -> inventoryValue"
+  },
+  {
+    "endpoint": "dashboard",
+    "path": "openServices",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/dashboard -> openServices"
+  },
+  {
+    "endpoint": "reports",
+    "path": "year",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> year"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months",
+    "type": "array",
+    "limit": "12 months",
+    "optional": false,
+    "source": "/api/reports -> months"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].month",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/reports -> months[].month"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].unitRevenue",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> months[].unitRevenue"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].serviceRevenue",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> months[].serviceRevenue"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].otherIncome",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> months[].otherIncome"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].totalRevenue",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> months[].totalRevenue"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].unitCost",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> months[].unitCost"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].serviceCost",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> months[].serviceCost"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].grossProfit",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> months[].grossProfit"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].expense",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> months[].expense"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].loss",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> months[].loss"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].netProfit",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> months[].netProfit"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].cashIn",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> months[].cashIn"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].cashOut",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> months[].cashOut"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].closingCash",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> months[].closingCash"
+  },
+  {
+    "endpoint": "reports",
+    "path": "months[].inventory",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/reports -> months[].inventory"
+  },
+  {
+    "endpoint": "opening",
+    "path": "id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/opening -> id"
+  },
+  {
+    "endpoint": "opening",
+    "path": "store_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/opening -> store_id"
+  },
+  {
+    "endpoint": "opening",
+    "path": "effective_on",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/opening -> effective_on"
+  },
+  {
+    "endpoint": "opening",
+    "path": "amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/opening -> amount"
+  },
+  {
+    "endpoint": "opening",
+    "path": "created_at",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/opening -> created_at"
+  },
+  {
+    "endpoint": "customers",
+    "path": "",
+    "type": "array",
+    "limit": "no server pagination except search; client table pages 5/10/20",
+    "optional": false,
+    "source": "/api/customers -> "
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/customers -> [].id"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].store_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/customers -> [].store_id"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].name",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/customers -> [].name"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].phone",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": true,
+    "source": "/api/customers -> [].phone"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].notes",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": true,
+    "source": "/api/customers -> [].notes"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].created_at",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/customers -> [].created_at"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].transactions",
+    "type": "array",
+    "limit": "no server pagination except search; client table pages 5/10/20",
+    "optional": false,
+    "source": "/api/customers -> [].transactions"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].transactions[].id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/customers -> [].transactions[].id"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].transactions[].code",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/customers -> [].transactions[].code"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].transactions[].sold_on",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/customers -> [].transactions[].sold_on"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].transactions[].amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/customers -> [].transactions[].amount"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].transactions[].paid",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/customers -> [].transactions[].paid"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].transactions[].type",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/customers -> [].transactions[].type"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].transactions[].remaining",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/customers -> [].transactions[].remaining"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].outstanding",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/customers -> [].outstanding"
+  },
+  {
+    "endpoint": "customers",
+    "path": "[].advances",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/customers -> [].advances"
+  },
+  {
+    "endpoint": "units",
+    "path": "",
+    "type": "array",
+    "limit": "no server pagination except search; client table pages 5/10/20",
+    "optional": false,
+    "source": "/api/units -> "
+  },
+  {
+    "endpoint": "units",
+    "path": "[].id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/units -> [].id"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].store_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/units -> [].store_id"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].code",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/units -> [].code"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].category",
+    "type": "string",
+    "limit": "enum/context dependent; see source schema and badge map",
+    "optional": false,
+    "source": "/api/units -> [].category"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].model",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/units -> [].model"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].specs",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": true,
+    "source": "/api/units -> [].specs"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].supplier",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": true,
+    "source": "/api/units -> [].supplier"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].intake_date",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/units -> [].intake_date"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].purchase_amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/units -> [].purchase_amount"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].repair_amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/units -> [].repair_amount"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].extra_amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/units -> [].extra_amount"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].target_amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/units -> [].target_amount"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].status",
+    "type": "string",
+    "limit": "enum/context dependent; see source schema and badge map",
+    "optional": false,
+    "source": "/api/units -> [].status"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].notes",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": true,
+    "source": "/api/units -> [].notes"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].created_at",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/units -> [].created_at"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].sale_id",
+    "type": "nullable",
+    "limit": "optional; source schema determines type",
+    "optional": true,
+    "source": "/api/units -> [].sale_id"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].total_cost",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/units -> [].total_cost"
+  },
+  {
+    "endpoint": "units",
+    "path": "[].paid",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/units -> [].paid"
+  },
+  {
+    "endpoint": "sales",
+    "path": "",
+    "type": "array",
+    "limit": "no server pagination except search; client table pages 5/10/20",
+    "optional": false,
+    "source": "/api/sales -> "
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/sales -> [].id"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].store_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/sales -> [].store_id"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].code",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/sales -> [].code"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].unit_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/sales -> [].unit_id"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].customer_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": true,
+    "source": "/api/sales -> [].customer_id"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].buyer_name",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": true,
+    "source": "/api/sales -> [].buyer_name"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].sold_on",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/sales -> [].sold_on"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].price_amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/sales -> [].price_amount"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].discount_amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/sales -> [].discount_amount"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].sale_cost_amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/sales -> [].sale_cost_amount"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].unit_cost_snapshot",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/sales -> [].unit_cost_snapshot"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].created_at",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/sales -> [].created_at"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].unit_code",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/sales -> [].unit_code"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].model",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/sales -> [].model"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].customer_name",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/sales -> [].customer_name"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].invoice_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": true,
+    "source": "/api/sales -> [].invoice_id"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].invoice_number",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": true,
+    "source": "/api/sales -> [].invoice_number"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].paid",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/sales -> [].paid"
+  },
+  {
+    "endpoint": "sales",
+    "path": "[].remaining",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/sales -> [].remaining"
+  },
+  {
+    "endpoint": "services",
+    "path": "",
+    "type": "array",
+    "limit": "no server pagination except search; client table pages 5/10/20",
+    "optional": false,
+    "source": "/api/services -> "
+  },
+  {
+    "endpoint": "services",
+    "path": "[].id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/services -> [].id"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].store_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/services -> [].store_id"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].code",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/services -> [].code"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].customer_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": true,
+    "source": "/api/services -> [].customer_id"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].received_on",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/services -> [].received_on"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].completed_on",
+    "type": "nullable",
+    "limit": "optional; source schema determines type",
+    "optional": true,
+    "source": "/api/services -> [].completed_on"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].category",
+    "type": "string",
+    "limit": "enum/context dependent; see source schema and badge map",
+    "optional": false,
+    "source": "/api/services -> [].category"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].model",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/services -> [].model"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].complaint",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/services -> [].complaint"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].part_code",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": true,
+    "source": "/api/services -> [].part_code"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].part_unit_cost",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/services -> [].part_unit_cost"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].part_qty",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/services -> [].part_qty"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].part_charge",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/services -> [].part_charge"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].service_charge",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/services -> [].service_charge"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].technician_cost",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/services -> [].technician_cost"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].estimate_amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/services -> [].estimate_amount"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].status",
+    "type": "string",
+    "limit": "enum/context dependent; see source schema and badge map",
+    "optional": false,
+    "source": "/api/services -> [].status"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].notes",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": true,
+    "source": "/api/services -> [].notes"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].created_at",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/services -> [].created_at"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].customer_name",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/services -> [].customer_name"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].invoice_id",
+    "type": "nullable",
+    "limit": "optional; source schema determines type",
+    "optional": true,
+    "source": "/api/services -> [].invoice_id"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].invoice_number",
+    "type": "nullable",
+    "limit": "optional; source schema determines type",
+    "optional": true,
+    "source": "/api/services -> [].invoice_number"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].paid",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/services -> [].paid"
+  },
+  {
+    "endpoint": "services",
+    "path": "[].remaining",
+    "type": "nullable",
+    "limit": "optional; source schema determines type",
+    "optional": true,
+    "source": "/api/services -> [].remaining"
+  },
+  {
+    "endpoint": "payments",
+    "path": "",
+    "type": "array",
+    "limit": "no server pagination except search; client table pages 5/10/20",
+    "optional": false,
+    "source": "/api/payments -> "
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/payments -> [].id"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].store_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/payments -> [].store_id"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].source_type",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/payments -> [].source_type"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].source_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/payments -> [].source_id"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].direction",
+    "type": "string",
+    "limit": "enum/context dependent; see source schema and badge map",
+    "optional": false,
+    "source": "/api/payments -> [].direction"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/payments -> [].amount"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].method",
+    "type": "string",
+    "limit": "enum/context dependent; see source schema and badge map",
+    "optional": false,
+    "source": "/api/payments -> [].method"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].paid_on",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/payments -> [].paid_on"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].reference",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": true,
+    "source": "/api/payments -> [].reference"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].created_by",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/payments -> [].created_by"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].created_at",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/payments -> [].created_at"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].document_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/payments -> [].document_id"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].document_number",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/payments -> [].document_number"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].kind",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/payments -> [].kind"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].reversed_by",
+    "type": "nullable",
+    "limit": "optional; source schema determines type",
+    "optional": true,
+    "source": "/api/payments -> [].reversed_by"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].correction_reason",
+    "type": "nullable",
+    "limit": "optional; source schema determines type",
+    "optional": true,
+    "source": "/api/payments -> [].correction_reason"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].original_document_number",
+    "type": "nullable",
+    "limit": "optional; source schema determines type",
+    "optional": true,
+    "source": "/api/payments -> [].original_document_number"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].details.store",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/payments -> [].details.store"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].details.source",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/payments -> [].details.source"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].details.invoice",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/payments -> [].details.invoice"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].details.person",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/payments -> [].details.person"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].details.paidOn",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/payments -> [].details.paidOn"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].details.amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/payments -> [].details.amount"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].details.method",
+    "type": "string",
+    "limit": "enum/context dependent; see source schema and badge map",
+    "optional": false,
+    "source": "/api/payments -> [].details.method"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].details.reference",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": true,
+    "source": "/api/payments -> [].details.reference"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].details.cumulative",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/payments -> [].details.cumulative"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].details.remaining",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/payments -> [].details.remaining"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].details.issuer",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/payments -> [].details.issuer"
+  },
+  {
+    "endpoint": "payments",
+    "path": "[].details.kind",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/payments -> [].details.kind"
+  },
+  {
+    "endpoint": "expenses",
+    "path": "",
+    "type": "array",
+    "limit": "no server pagination except search; client table pages 5/10/20",
+    "optional": false,
+    "source": "/api/expenses -> "
+  },
+  {
+    "endpoint": "expenses",
+    "path": "[].id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/expenses -> [].id"
+  },
+  {
+    "endpoint": "expenses",
+    "path": "[].store_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/expenses -> [].store_id"
+  },
+  {
+    "endpoint": "expenses",
+    "path": "[].code",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/expenses -> [].code"
+  },
+  {
+    "endpoint": "expenses",
+    "path": "[].happened_on",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/expenses -> [].happened_on"
+  },
+  {
+    "endpoint": "expenses",
+    "path": "[].category",
+    "type": "string",
+    "limit": "enum/context dependent; see source schema and badge map",
+    "optional": false,
+    "source": "/api/expenses -> [].category"
+  },
+  {
+    "endpoint": "expenses",
+    "path": "[].description",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/expenses -> [].description"
+  },
+  {
+    "endpoint": "expenses",
+    "path": "[].amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/expenses -> [].amount"
+  },
+  {
+    "endpoint": "expenses",
+    "path": "[].created_at",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/expenses -> [].created_at"
+  },
+  {
+    "endpoint": "expenses",
+    "path": "[].paid",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/expenses -> [].paid"
+  },
+  {
+    "endpoint": "expenses",
+    "path": "[].remaining",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/expenses -> [].remaining"
+  },
+  {
+    "endpoint": "incomes",
+    "path": "",
+    "type": "array",
+    "limit": "no server pagination except search; client table pages 5/10/20",
+    "optional": false,
+    "source": "/api/incomes -> "
+  },
+  {
+    "endpoint": "incomes",
+    "path": "[].id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/incomes -> [].id"
+  },
+  {
+    "endpoint": "incomes",
+    "path": "[].store_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/incomes -> [].store_id"
+  },
+  {
+    "endpoint": "incomes",
+    "path": "[].code",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/incomes -> [].code"
+  },
+  {
+    "endpoint": "incomes",
+    "path": "[].happened_on",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/incomes -> [].happened_on"
+  },
+  {
+    "endpoint": "incomes",
+    "path": "[].category",
+    "type": "string",
+    "limit": "enum/context dependent; see source schema and badge map",
+    "optional": false,
+    "source": "/api/incomes -> [].category"
+  },
+  {
+    "endpoint": "incomes",
+    "path": "[].description",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/incomes -> [].description"
+  },
+  {
+    "endpoint": "incomes",
+    "path": "[].amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/incomes -> [].amount"
+  },
+  {
+    "endpoint": "incomes",
+    "path": "[].created_at",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/incomes -> [].created_at"
+  },
+  {
+    "endpoint": "incomes",
+    "path": "[].paid",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/incomes -> [].paid"
+  },
+  {
+    "endpoint": "incomes",
+    "path": "[].remaining",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/incomes -> [].remaining"
+  },
+  {
+    "endpoint": "losses",
+    "path": "",
+    "type": "array",
+    "limit": "no server pagination except search; client table pages 5/10/20",
+    "optional": false,
+    "source": "/api/losses -> "
+  },
+  {
+    "endpoint": "losses",
+    "path": "[].id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/losses -> [].id"
+  },
+  {
+    "endpoint": "losses",
+    "path": "[].store_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/losses -> [].store_id"
+  },
+  {
+    "endpoint": "losses",
+    "path": "[].code",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/losses -> [].code"
+  },
+  {
+    "endpoint": "losses",
+    "path": "[].happened_on",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/losses -> [].happened_on"
+  },
+  {
+    "endpoint": "losses",
+    "path": "[].category",
+    "type": "string",
+    "limit": "enum/context dependent; see source schema and badge map",
+    "optional": false,
+    "source": "/api/losses -> [].category"
+  },
+  {
+    "endpoint": "losses",
+    "path": "[].description",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/losses -> [].description"
+  },
+  {
+    "endpoint": "losses",
+    "path": "[].amount",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/losses -> [].amount"
+  },
+  {
+    "endpoint": "losses",
+    "path": "[].created_at",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/losses -> [].created_at"
+  },
+  {
+    "endpoint": "losses",
+    "path": "[].paid",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/losses -> [].paid"
+  },
+  {
+    "endpoint": "losses",
+    "path": "[].remaining",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/losses -> [].remaining"
+  },
+  {
+    "endpoint": "users",
+    "path": "",
+    "type": "array",
+    "limit": "no server pagination except search; client table pages 5/10/20",
+    "optional": false,
+    "source": "/api/users -> "
+  },
+  {
+    "endpoint": "users",
+    "path": "[].id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/users -> [].id"
+  },
+  {
+    "endpoint": "users",
+    "path": "[].username",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/users -> [].username"
+  },
+  {
+    "endpoint": "users",
+    "path": "[].name",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/users -> [].name"
+  },
+  {
+    "endpoint": "users",
+    "path": "[].role",
+    "type": "string",
+    "limit": "enum/context dependent; see source schema and badge map",
+    "optional": false,
+    "source": "/api/users -> [].role"
+  },
+  {
+    "endpoint": "users",
+    "path": "[].active",
+    "type": "number",
+    "limit": "money input 0..9007199254740991; count/aggregates computed without safe-sum checks",
+    "optional": false,
+    "source": "/api/users -> [].active"
+  },
+  {
+    "endpoint": "audit",
+    "path": "",
+    "type": "array",
+    "limit": "300 returned",
+    "optional": false,
+    "source": "/api/audit -> "
+  },
+  {
+    "endpoint": "audit",
+    "path": "[].id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/audit -> [].id"
+  },
+  {
+    "endpoint": "audit",
+    "path": "[].store_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/audit -> [].store_id"
+  },
+  {
+    "endpoint": "audit",
+    "path": "[].actor_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/audit -> [].actor_id"
+  },
+  {
+    "endpoint": "audit",
+    "path": "[].entity",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/audit -> [].entity"
+  },
+  {
+    "endpoint": "audit",
+    "path": "[].entity_id",
+    "type": "string",
+    "limit": "generated UUID/reference",
+    "optional": false,
+    "source": "/api/audit -> [].entity_id"
+  },
+  {
+    "endpoint": "audit",
+    "path": "[].action",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/audit -> [].action"
+  },
+  {
+    "endpoint": "audit",
+    "path": "[].detail",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/audit -> [].detail"
+  },
+  {
+    "endpoint": "audit",
+    "path": "[].created_at",
+    "type": "string",
+    "limit": "ISO validated date or generated timestamp; no business date range",
+    "optional": false,
+    "source": "/api/audit -> [].created_at"
+  },
+  {
+    "endpoint": "audit",
+    "path": "[].actor_name",
+    "type": "string",
+    "limit": "unbounded text, subject to overall 1 MB request body",
+    "optional": false,
+    "source": "/api/audit -> [].actor_name"
+  }
+]

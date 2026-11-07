@@ -1,0 +1,37 @@
+const scopes = {
+  customers: ['Pelanggan', 'customers'], units: ['Stok unit', 'units'],
+  sales: ['Penjualan', 'sales'], services: ['Servis', 'services'],
+  payments: ['Pembayaran', 'payments'], expenses: ['Biaya operasional', 'finance'],
+  incomes: ['Pendapatan lain', 'finance'], losses: ['Kerugian', 'finance'],
+  users: ['Staf', 'staff'], audit: ['Log perubahan', 'audit']
+};
+const normalize = value => String(value ?? '').normalize('NFKC').toLowerCase();
+const tokens = value => normalize(value).match(/[\p{L}\p{N}+-]+/gu) || [];
+// Read through the existing API so search inherits store isolation, role checks,
+// and field redaction instead of maintaining a second set of access rules.
+export async function searchRecords({ query, offset = 0, role, read }) {
+  const terms = tokens(query);
+  const message = 'Hasil pencarian dari database toko sesuai akses Anda.';
+  if (!terms.length) return { message, total: 0, offset, results: [], hasMore: false };
+  const allowed = ['customers','units','payments'];
+  if (role !== 'service') allowed.push('sales');
+  if (role !== 'cashier') allowed.push('services');
+  if (role === 'owner') allowed.push('expenses','incomes','losses','users','audit');
+  const matches = [];
+  for (const scope of allowed) {
+    const rows = await read(scope);
+    for (const row of rows) {
+      const [label, page] = scopes[scope];
+      const fields = Object.entries({ ...row, ...(row.details || {}) }).filter(([key,value]) =>
+        !/(^id$|_id$|password|snapshot|created_at)/.test(key) && value !== null && typeof value !== 'object');
+      const text = normalize([label, scope, ...fields.map(([,value]) => value)].join(' '));
+      const date = row.sold_on || row.received_on || row.paid_on || row.happened_on || row.intake_date || row.created_at?.slice(0,10) || '';
+      if (!terms.every(term => text.includes(term))) continue;
+      const title = row.document_number || row.code || row.name || `${row.entity} · ${row.action}`;
+      matches.push({ id: row.id, scope, page, label, title,
+        summary: [row.model, row.customer_name || row.buyer_name, row.phone, row.description, row.details?.person, row.details?.source, row.status, date].filter(Boolean).join(' · '),
+        fields: Object.fromEntries(fields) });
+    }
+  }
+  return { message, total: matches.length, offset, results: matches.slice(offset, offset + 20), hasMore: offset + 20 < matches.length };
+}

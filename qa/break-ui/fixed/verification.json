@@ -1,0 +1,156 @@
+[
+  {
+    "name": "160 layout cases keep amounts intact and avoid page overflow",
+    "value": {
+      "cases": 160
+    }
+  },
+  {
+    "name": "Visible modal buttons and input limits at 320",
+    "value": [
+      {
+        "text": "Batal",
+        "top": 873,
+        "bottom": 917,
+        "dialogTop": 16,
+        "dialogBottom": 934
+      },
+      {
+        "text": "Simpan unit",
+        "top": 873,
+        "bottom": 917,
+        "dialogTop": 16,
+        "dialogBottom": 934
+      }
+    ],
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\fixed\\screenshots\\verified-modal-320.png"
+  },
+  {
+    "name": "Visible modal buttons and input limits at 390",
+    "value": [
+      {
+        "text": "Batal",
+        "top": 873,
+        "bottom": 917,
+        "dialogTop": 16,
+        "dialogBottom": 934
+      },
+      {
+        "text": "Simpan unit",
+        "top": 873,
+        "bottom": 917,
+        "dialogTop": 16,
+        "dialogBottom": 934
+      }
+    ],
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\fixed\\screenshots\\verified-modal-390.png"
+  },
+  {
+    "name": "Visible modal buttons and input limits at 768",
+    "value": [
+      {
+        "text": "Batal",
+        "top": 771.5,
+        "bottom": 815.5,
+        "dialogTop": 117.5,
+        "dialogBottom": 832.5
+      },
+      {
+        "text": "Simpan unit",
+        "top": 771.5,
+        "bottom": 815.5,
+        "dialogTop": 117.5,
+        "dialogBottom": 832.5
+      }
+    ],
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\fixed\\screenshots\\verified-modal-768.png"
+  },
+  {
+    "name": "Visible modal buttons and input limits at 1440",
+    "value": [
+      {
+        "text": "Batal",
+        "top": 771.5,
+        "bottom": 815.5,
+        "dialogTop": 117.5,
+        "dialogBottom": 832.5
+      },
+      {
+        "text": "Simpan unit",
+        "top": 771.5,
+        "bottom": 815.5,
+        "dialogTop": 117.5,
+        "dialogBottom": 832.5
+      }
+    ],
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\fixed\\screenshots\\verified-modal-1440.png"
+  },
+  {
+    "name": "101 distinct compact unit options",
+    "value": {
+      "count": 133,
+      "examples": [
+        "001 · …026/11/0000010",
+        "002 · …26/11/00000110",
+        "003 · QA-15"
+      ]
+    },
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\fixed\\screenshots\\verified-unit-options-320.png"
+  },
+  {
+    "name": "Full selected-unit details remain readable",
+    "value": "INV/JKT/TECHKASIR/REKONDISI/CORPORATE/2026/11/0000010Lenovo ThinkPad X1 Carbon Gen 12 Intel Core Ultra 7 RAM 64 GB SSD 2 TB Garansi Distributor Indonesia",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\fixed\\screenshots\\verified-unit-detail-320.png"
+  },
+  {
+    "name": "Dates remain intact in mobile tables",
+    "value": [
+      {
+        "date": "2026-11-07",
+        "lines": 1,
+        "whiteSpace": "nowrap"
+      },
+      {
+        "date": "2026-11-07",
+        "lines": 1,
+        "whiteSpace": "nowrap"
+      },
+      {
+        "date": "2026-11-07",
+        "lines": 1,
+        "whiteSpace": "nowrap"
+      },
+      {
+        "date": "2026-11-07",
+        "lines": 1,
+        "whiteSpace": "nowrap"
+      },
+      {
+        "date": "2026-11-07",
+        "lines": 1,
+        "whiteSpace": "nowrap"
+      }
+    ],
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\fixed\\screenshots\\verified-table-dates-320.png"
+  },
+  {
+    "name": "Historical report year is selectable",
+    "value": "1970",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\fixed\\screenshots\\verified-report-1970.png"
+  },
+  {
+    "name": "Monthly values respond to mobile click and keyboard focus",
+    "value": {
+      "text": "Jan 2026. Pendapatan Rp 9.876.543.210.987. Laba bersih Rp -987.654.321.098",
+      "label": "Jan 2026. Pendapatan Rp 9.876.543.210.987. Laba bersih Rp -987.654.321.098",
+      "pressed": "true"
+    },
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\fixed\\screenshots\\verified-chart-details-320.png"
+  },
+  {
+    "name": "No fatal JavaScript exceptions",
+    "value": {
+      "count": 0
+    }
+  }
+]

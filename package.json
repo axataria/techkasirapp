@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",
-    "test": "node test.mjs"
+    "seed:demo": "node seed-demo.mjs",
+    "test": "node test.mjs && node dashboard.test.mjs && node search.test.mjs && node components.test.mjs && node data-table.test.mjs && node domain.test.mjs"
   },
   "engines": { "node": ">=24" }
 }

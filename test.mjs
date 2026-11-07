@@ -29,6 +29,7 @@ try {
   assert.match(stylesheet,/@media\s*\(max-width:\s*760px\)[\s\S]*?\.mobile-nav\s*\{\s*display:\s*flex/);
   assert.doesNotMatch(page,/<!-- APP_STYLES -->/);
   assert.equal((await request('/api/bootstrap')).needsSetup,true);
+  await request('/api/search','POST',{query:'Samsung'},401);
   await request('/api/setup','POST',{storeName:'Toko Uji',name:'Pemilik',username:'owner',password:'test-password-123',openingDate:'2026-01-01',openingAmount:500000},201);
   await request('/api/login','POST',{username:'owner',password:'test-password-123'});
   const customer=await request('/api/customers','POST',{name:'Dina Putri',phone:'08123456789'},201);
@@ -82,6 +83,16 @@ try {
   assert.equal(correctedReport.months[10].cashIn,report.months[10].cashIn-100000);
   assert.equal(correctedReport.months[10].cashOut,report.months[10].cashOut);
   await request('/api/users','POST',{username:'kasir',name:'Kasir Uji',role:'cashier',password:'cashier-test-123'},201);
+  const foundUnit = await request('/api/search','POST',{query:'ThinkPad'});
+  assert(foundUnit.results.some(x=>x.scope==='units'&&x.id===unit.id));
+  const foundCustomer = await request('/api/search','POST',{query:'Dina Putri'});
+  assert(foundCustomer.results.some(x=>x.scope==='customers'&&x.id===customer.id));
+  const foundPayment = await request('/api/search','POST',{query:corrected.document_number});
+  assert(foundPayment.results.some(x=>x.scope==='payments'&&x.id===replacement.id));
+  assert.equal((await request('/api/search','POST',{query:'zzzznonexistent'})).total,0);
+  await request('/api/search','POST',{query:' '},400);
+  await request('/api/search','POST',{query:'x'.repeat(301)},400);
+  await request('/api/search','POST',{query:'Samsung',offset:-1},400);
   await request('/api/logout','POST',{});await request('/api/me','GET',undefined,401);
   await request('/api/login','POST',{username:'kasir',password:'cashier-test-123'});
   await request('/api/dashboard','GET',undefined,403);
@@ -89,6 +100,11 @@ try {
   await request(`/api/payments/${replacement.id}/correct`,'POST',correction,403);
   await request(`/document?type=payment&id=${docs.find(x=>x.source_type==='unit').document_id}`,'GET',undefined,403);
   const cashierUnits=await request('/api/units');assert.equal('purchase_amount' in cashierUnits[0],false);
+  const cashierSearch=await request('/api/search','POST',{query:'ThinkPad'});
+  assert(cashierSearch.results.some(x=>x.scope==='units'));
+  assert(cashierSearch.results.every(x=>!['services','expenses','incomes','losses','users','audit'].includes(x.scope)));
+  assert(!JSON.stringify(cashierSearch).includes('purchase_amount'));
+  assert.equal((await request('/api/search','POST',{query:'Kasir Uji'})).total,0);
   console.log('Integration checks passed: login, role access, unit sale, DP, service advance, customer balance, payment documents, cash and monthly reports.');
 } finally {
   server.kill();

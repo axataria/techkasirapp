@@ -1,0 +1,353 @@
+[
+  {
+    "name": "Ambient animation enabled",
+    "value": "ambient-drift"
+  },
+  {
+    "name": "Ambient animation drifts",
+    "first": "matrix(1.02, 0, 0, 1.02, -53.01, -23.56)",
+    "later": "matrix(1.02004, 0, 0, 1.02004, -52.9409, -23.5293)"
+  },
+  {
+    "name": "Reduced motion stops drift",
+    "value": "none"
+  },
+  {
+    "name": "Cancel does not save valid form",
+    "writes": 0,
+    "open": false
+  },
+  {
+    "name": "Modal keyboard focus and restoration",
+    "focusTrail": [
+      {
+        "inside": true,
+        "tag": "INPUT",
+        "name": "phone"
+      },
+      {
+        "inside": true,
+        "tag": "INPUT",
+        "name": "notes"
+      },
+      {
+        "inside": true,
+        "tag": "BUTTON",
+        "name": "",
+        "action": "close-modal"
+      },
+      {
+        "inside": true,
+        "tag": "BUTTON",
+        "name": ""
+      },
+      {
+        "inside": false,
+        "tag": "BODY"
+      },
+      {
+        "inside": true,
+        "tag": "BUTTON",
+        "name": "",
+        "action": "close-modal"
+      },
+      {
+        "inside": true,
+        "tag": "INPUT",
+        "name": "name"
+      },
+      {
+        "inside": true,
+        "tag": "INPUT",
+        "name": "phone"
+      },
+      {
+        "inside": true,
+        "tag": "INPUT",
+        "name": "notes"
+      }
+    ],
+    "restored": "new-customer",
+    "open": false
+  },
+  {
+    "name": "Repeated submit and pending Escape",
+    "writes": 1,
+    "state": {
+      "open": true,
+      "busy": "true",
+      "label": "Menyimpan…",
+      "disabled": true
+    },
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\saving-pending-1440.png"
+  },
+  {
+    "name": "Failed save keeps data and recovers actions",
+    "value": {
+      "input": "QA failed request",
+      "label": "Simpan pelanggan",
+      "disabled": false,
+      "focus": "message error wide",
+      "message": "Koneksi uji terputus. Silakan coba lagi."
+    },
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\failed-save-1440.png"
+  },
+  {
+    "name": "Unit modal at 320",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\unit-modal-top-320.png",
+    "value": {
+      "width": 320,
+      "dialogWidth": 250,
+      "scrollWidth": 250,
+      "actions": {
+        "top": 880,
+        "bottom": 957
+      }
+    }
+  },
+  {
+    "name": "Unit modal bottom at 320",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\unit-modal-bottom-320.png"
+  },
+  {
+    "name": "Historical date accepted at 320",
+    "valid": true
+  },
+  {
+    "name": "Account menu at 320",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\account-menu-320.png",
+    "value": {
+      "open": true,
+      "left": 10.06634521484375,
+      "right": 274,
+      "bottom": 283.91373443603516,
+      "viewport": 320,
+      "text": "\n      👩🏽‍💻 PutriPemilik · PT Teknologi Nusantara Cabang Jakarta Selatan — Penjualan Laptop & Ponsel Rekondisi\n      Pengaturan\n      Keluar\n    "
+    }
+  },
+  {
+    "name": "Unit modal at 390",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\unit-modal-top-390.png",
+    "value": {
+      "width": 390,
+      "dialogWidth": 320,
+      "scrollWidth": 320,
+      "actions": {
+        "top": 880,
+        "bottom": 957
+      }
+    }
+  },
+  {
+    "name": "Unit modal bottom at 390",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\unit-modal-bottom-390.png"
+  },
+  {
+    "name": "Historical date accepted at 390",
+    "valid": true
+  },
+  {
+    "name": "Account menu at 390",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\account-menu-390.png",
+    "value": {
+      "open": true,
+      "left": 80,
+      "right": 344,
+      "bottom": 284,
+      "viewport": 390,
+      "text": "\n      👩🏽‍💻 PutriPemilik · PT Teknologi Nusantara Cabang Jakarta Selatan — Penjualan Laptop & Ponsel Rekondisi\n      Pengaturan\n      Keluar\n    "
+    }
+  },
+  {
+    "name": "Unit modal at 768",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\unit-modal-top-768.png",
+    "value": {
+      "width": 768,
+      "dialogWidth": 548,
+      "scrollWidth": 548,
+      "actions": {
+        "top": 754.5,
+        "bottom": 831.5
+      }
+    }
+  },
+  {
+    "name": "Unit modal bottom at 768",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\unit-modal-bottom-768.png"
+  },
+  {
+    "name": "Historical date accepted at 768",
+    "valid": true
+  },
+  {
+    "name": "Account menu at 768",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\account-menu-768.png",
+    "value": {
+      "open": true,
+      "left": 443.28125,
+      "right": 707.28125,
+      "bottom": 288,
+      "viewport": 768,
+      "text": "\n      👩🏽‍💻 PutriPemilik · PT Teknologi Nusantara Cabang Jakarta Selatan — Penjualan Laptop & Ponsel Rekondisi\n      Pengaturan\n      Keluar\n    "
+    }
+  },
+  {
+    "name": "Unit modal at 1440",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\unit-modal-top-1440.png",
+    "value": {
+      "width": 1440,
+      "dialogWidth": 548,
+      "scrollWidth": 548,
+      "actions": {
+        "top": 754.5,
+        "bottom": 831.5
+      }
+    }
+  },
+  {
+    "name": "Unit modal bottom at 1440",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\unit-modal-bottom-1440.png"
+  },
+  {
+    "name": "Historical date accepted at 1440",
+    "valid": true
+  },
+  {
+    "name": "Account menu at 1440",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\account-menu-1440.png",
+    "value": {
+      "open": true,
+      "left": 1088.40625,
+      "right": 1352.40625,
+      "bottom": 288,
+      "viewport": 1440,
+      "text": "\n      👩🏽‍💻 PutriPemilik · PT Teknologi Nusantara Cabang Jakarta Selatan — Penjualan Laptop & Ponsel Rekondisi\n      Pengaturan\n      Keluar\n    "
+    }
+  },
+  {
+    "name": "Native date picker",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\native-date-picker-1440.png"
+  },
+  {
+    "name": "Report years exposed by dropdown",
+    "years": [
+      "2022",
+      "2023",
+      "2024",
+      "2025",
+      "2026",
+      "2027",
+      "2028"
+    ]
+  },
+  {
+    "name": "Edits during search discard old response",
+    "value": {
+      "query": "ThinkPad",
+      "status": "Tekan Cari untuk mencari kata kunci ini.",
+      "results": ""
+    },
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\search-stale-response.png"
+  },
+  {
+    "name": "Search no results",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\search-no-results.png"
+  },
+  {
+    "name": "Search API failure",
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\search-failure.png",
+    "status": "Koneksi uji terputus. Silakan coba lagi."
+  },
+  {
+    "name": "Thousand-row table pagination",
+    "value": {
+      "summary": "Menampilkan 1–5 dari 1000 baris",
+      "rows": 5,
+      "domNodes": 310,
+      "buttons": [
+        "Halaman sebelumnya",
+        "Halaman 1",
+        "Halaman 2",
+        "Halaman 200",
+        "Halaman berikutnya"
+      ]
+    }
+  },
+  {
+    "name": "Thousand-row next page",
+    "summary": "Menampilkan 6–10 dari 1000 baris"
+  },
+  {
+    "name": "Assets and fonts",
+    "value": {
+      "fontsReady": "loaded",
+      "fontLoaded": true,
+      "assets": [
+        {
+          "name": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..700&display=swap",
+          "duration": 7.100000001490116
+        },
+        {
+          "name": "http://127.0.0.1:3101/style.css",
+          "duration": 11.099999997764826
+        },
+        {
+          "name": "http://127.0.0.1:3101/__qa/controls.js",
+          "duration": 9.800000000745058
+        },
+        {
+          "name": "http://127.0.0.1:3101/app.js",
+          "duration": 11.199999999254942
+        },
+        {
+          "name": "http://127.0.0.1:3101/theme.js",
+          "duration": 39.80000000074506
+        },
+        {
+          "name": "http://127.0.0.1:3101/search.js",
+          "duration": 44.69999999925494
+        },
+        {
+          "name": "http://127.0.0.1:3101/data-table.js",
+          "duration": 44.79999999701977
+        },
+        {
+          "name": "http://127.0.0.1:3101/api/bootstrap",
+          "duration": 15.199999999254942
+        },
+        {
+          "name": "http://127.0.0.1:3101/favicon.ico",
+          "duration": 7.800000000745058
+        },
+        {
+          "name": "http://127.0.0.1:3101/api/me",
+          "duration": 22.699999999254942
+        },
+        {
+          "name": "http://127.0.0.1:3101/api/dashboard",
+          "duration": 13.5
+        },
+        {
+          "name": "http://127.0.0.1:3101/api/reports?year=2026",
+          "duration": 16.799999997019768
+        },
+        {
+          "name": "http://127.0.0.1:3101/api/units",
+          "duration": 29.199999999254942
+        },
+        {
+          "name": "http://127.0.0.1:3101/api/services",
+          "duration": 30.099999997764826
+        },
+        {
+          "name": "http://127.0.0.1:3101/api/payments",
+          "duration": 31.100000001490116
+        },
+        {
+          "name": "http://127.0.0.1:3101/glass-noise.svg",
+          "duration": 39.30000000074506
+        }
+      ]
+    }
+  }
+]

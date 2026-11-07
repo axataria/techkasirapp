@@ -1,0 +1,376 @@
+[
+  {
+    "name": "Above safe integer rejected",
+    "result": {
+      "status": 400,
+      "body": {
+        "error": "Jumlah harus bilangan rupiah positif atau nol."
+      }
+    }
+  },
+  {
+    "name": "Negative input rejected",
+    "result": {
+      "status": 400,
+      "body": {
+        "error": "Jumlah harus bilangan rupiah positif atau nol."
+      }
+    }
+  },
+  {
+    "name": "Invalid leap date rejected",
+    "result": {
+      "status": 400,
+      "body": {
+        "error": "Tanggal tidak valid."
+      }
+    }
+  },
+  {
+    "name": "Single input at advertised safe limit",
+    "result": {
+      "status": 201,
+      "body": {
+        "id": "fd498dc8-55c5-4758-b3a5-d18d53f1a315"
+      }
+    }
+  },
+  {
+    "name": "Unit list after maximum accepted amount",
+    "result": {
+      "status": 200,
+      "body": [
+        {
+          "id": "fd498dc8-55c5-4758-b3a5-d18d53f1a315",
+          "store_id": "bfa5a43e-51dc-4ec8-a8f7-49aaa6390242",
+          "code": "QA-LIMIT-ONLY",
+          "category": "Laptop",
+          "model": "Workstation audit batas angka",
+          "specs": "",
+          "supplier": "",
+          "intake_date": "2026-11-07",
+          "purchase_amount": 9007199254740991,
+          "repair_amount": 0,
+          "extra_amount": 0,
+          "target_amount": 0,
+          "status": "Siap dijual",
+          "notes": "",
+          "created_at": "2026-11-07T14:33:32.391Z",
+          "sale_id": null,
+          "total_cost": 9007199254740991,
+          "paid": 0
+        },
+        {
+          "id": "d0d575fb-0d68-4159-9951-5c400f0ec4a1",
+          "store_id": "bfa5a43e-51dc-4ec8-a8f7-49aaa6390242",
+          "code": "QA-HISTORICAL",
+          "category": "Laptop",
+          "model": "Workstation audit batas angka",
+          "specs": "",
+          "supplier": "",
+          "intake_date": "1970-01-01",
+          "purchase_amount": 0,
+          "repair_amount": 0,
+          "extra_amount": 0,
+          "target_amount": 0,
+          "status": "Siap dijual",
+          "notes": "",
+          "created_at": "2026-11-07T14:12:18.295Z",
+          "sale_id": null,
+          "total_cost": 0,
+          "paid": 0
+        },
+        {
+          "id": "2f8fc3c8-c586-4857-a3a6-fa964bc51208",
+          "store_id": "bfa5a43e-51dc-4ec8-a8f7-49aaa6390242",
+          "code": "QA-UNIT-02",
+          "category": "HP",
+          "model": "Samsung A54",
+          "specs": "",
+          "supplier": "",
+          "intake_date": "2026-11-07",
+          "purchase_amount": 1000000,
+          "repair_amount": 0,
+          "extra_amount": 0,
+          "target_amount": 1500000,
+          "status": "Siap dijual",
+          "notes": "",
+          "created_at": "2026-11-07T14:04:36.087Z",
+          "sale_id": null,
+          "total_cost": 1000000,
+          "paid": 0
+        },
+        {
+          "id": "234df5e5-35e6-44ee-a319-ccb4bd931d86",
+          "store_id": "bfa5a43e-51dc-4ec8-a8f7-49aaa6390242",
+          "code": "QA-UNIT-01",
+          "category": "Laptop",
+          "model": "ThinkPad T14",
+          "specs": "",
+          "supplier": "",
+          "intake_date": "2026-11-07",
+          "purchase_amount": 2000000,
+          "repair_amount": 0,
+          "extra_amount": 0,
+          "target_amount": 3000000,
+          "status": "Siap dijual",
+          "notes": "",
+          "created_at": "2026-11-07T14:04:36.077Z",
+          "sale_id": "7188cd0c-b345-4442-a038-38ef0952cd34",
+          "total_cost": 2000000,
+          "paid": 0
+        }
+      ]
+    }
+  },
+  {
+    "name": "Dashboard after maximum accepted amount",
+    "result": {
+      "status": 200,
+      "body": {
+        "unitRevenue": 3000000,
+        "serviceRevenue": 0,
+        "incomes": 75000,
+        "expenses": 75000,
+        "losses": 75000,
+        "receivables": 2500000,
+        "totalRevenue": 3075000,
+        "grossProfit": 1075000,
+        "netProfit": 925000,
+        "cash": 500000,
+        "available": 3,
+        "inProcess": 0,
+        "inventoryValue": "9007199255740991",
+        "openServices": 1
+      }
+    }
+  },
+  {
+    "name": "Historical report year 1970",
+    "result": {
+      "status": 200,
+      "body": {
+        "year": 1970,
+        "years": [
+          2026,
+          1970
+        ],
+        "months": [
+          {
+            "month": "1970-01",
+            "unitRevenue": 0,
+            "serviceRevenue": 0,
+            "otherIncome": 0,
+            "totalRevenue": 0,
+            "unitCost": 0,
+            "serviceCost": 0,
+            "grossProfit": 0,
+            "expense": 0,
+            "loss": 0,
+            "netProfit": 0,
+            "cashIn": 0,
+            "cashOut": 0,
+            "closingCash": 0,
+            "inventory": 0
+          },
+          {
+            "month": "1970-02",
+            "unitRevenue": 0,
+            "serviceRevenue": 0,
+            "otherIncome": 0,
+            "totalRevenue": 0,
+            "unitCost": 0,
+            "serviceCost": 0,
+            "grossProfit": 0,
+            "expense": 0,
+            "loss": 0,
+            "netProfit": 0,
+            "cashIn": 0,
+            "cashOut": 0,
+            "closingCash": 0,
+            "inventory": 0
+          },
+          {
+            "month": "1970-03",
+            "unitRevenue": 0,
+            "serviceRevenue": 0,
+            "otherIncome": 0,
+            "totalRevenue": 0,
+            "unitCost": 0,
+            "serviceCost": 0,
+            "grossProfit": 0,
+            "expense": 0,
+            "loss": 0,
+            "netProfit": 0,
+            "cashIn": 0,
+            "cashOut": 0,
+            "closingCash": 0,
+            "inventory": 0
+          },
+          {
+            "month": "1970-04",
+            "unitRevenue": 0,
+            "serviceRevenue": 0,
+            "otherIncome": 0,
+            "totalRevenue": 0,
+            "unitCost": 0,
+            "serviceCost": 0,
+            "grossProfit": 0,
+            "expense": 0,
+            "loss": 0,
+            "netProfit": 0,
+            "cashIn": 0,
+            "cashOut": 0,
+            "closingCash": 0,
+            "inventory": 0
+          },
+          {
+            "month": "1970-05",
+            "unitRevenue": 0,
+            "serviceRevenue": 0,
+            "otherIncome": 0,
+            "totalRevenue": 0,
+            "unitCost": 0,
+            "serviceCost": 0,
+            "grossProfit": 0,
+            "expense": 0,
+            "loss": 0,
+            "netProfit": 0,
+            "cashIn": 0,
+            "cashOut": 0,
+            "closingCash": 0,
+            "inventory": 0
+          },
+          {
+            "month": "1970-06",
+            "unitRevenue": 0,
+            "serviceRevenue": 0,
+            "otherIncome": 0,
+            "totalRevenue": 0,
+            "unitCost": 0,
+            "serviceCost": 0,
+            "grossProfit": 0,
+            "expense": 0,
+            "loss": 0,
+            "netProfit": 0,
+            "cashIn": 0,
+            "cashOut": 0,
+            "closingCash": 0,
+            "inventory": 0
+          },
+          {
+            "month": "1970-07",
+            "unitRevenue": 0,
+            "serviceRevenue": 0,
+            "otherIncome": 0,
+            "totalRevenue": 0,
+            "unitCost": 0,
+            "serviceCost": 0,
+            "grossProfit": 0,
+            "expense": 0,
+            "loss": 0,
+            "netProfit": 0,
+            "cashIn": 0,
+            "cashOut": 0,
+            "closingCash": 0,
+            "inventory": 0
+          },
+          {
+            "month": "1970-08",
+            "unitRevenue": 0,
+            "serviceRevenue": 0,
+            "otherIncome": 0,
+            "totalRevenue": 0,
+            "unitCost": 0,
+            "serviceCost": 0,
+            "grossProfit": 0,
+            "expense": 0,
+            "loss": 0,
+            "netProfit": 0,
+            "cashIn": 0,
+            "cashOut": 0,
+            "closingCash": 0,
+            "inventory": 0
+          },
+          {
+            "month": "1970-09",
+            "unitRevenue": 0,
+            "serviceRevenue": 0,
+            "otherIncome": 0,
+            "totalRevenue": 0,
+            "unitCost": 0,
+            "serviceCost": 0,
+            "grossProfit": 0,
+            "expense": 0,
+            "loss": 0,
+            "netProfit": 0,
+            "cashIn": 0,
+            "cashOut": 0,
+            "closingCash": 0,
+            "inventory": 0
+          },
+          {
+            "month": "1970-10",
+            "unitRevenue": 0,
+            "serviceRevenue": 0,
+            "otherIncome": 0,
+            "totalRevenue": 0,
+            "unitCost": 0,
+            "serviceCost": 0,
+            "grossProfit": 0,
+            "expense": 0,
+            "loss": 0,
+            "netProfit": 0,
+            "cashIn": 0,
+            "cashOut": 0,
+            "closingCash": 0,
+            "inventory": 0
+          },
+          {
+            "month": "1970-11",
+            "unitRevenue": 0,
+            "serviceRevenue": 0,
+            "otherIncome": 0,
+            "totalRevenue": 0,
+            "unitCost": 0,
+            "serviceCost": 0,
+            "grossProfit": 0,
+            "expense": 0,
+            "loss": 0,
+            "netProfit": 0,
+            "cashIn": 0,
+            "cashOut": 0,
+            "closingCash": 0,
+            "inventory": 0
+          },
+          {
+            "month": "1970-12",
+            "unitRevenue": 0,
+            "serviceRevenue": 0,
+            "otherIncome": 0,
+            "totalRevenue": 0,
+            "unitCost": 0,
+            "serviceCost": 0,
+            "grossProfit": 0,
+            "expense": 0,
+            "loss": 0,
+            "netProfit": 0,
+            "cashIn": 0,
+            "cashOut": 0,
+            "closingCash": 0,
+            "inventory": 0
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "1970 date accepted by transaction validation",
+    "result": {
+      "status": 409,
+      "body": {
+        "error": "Kode sudah digunakan."
+      }
+    }
+  }
+]

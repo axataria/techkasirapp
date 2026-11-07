@@ -1,0 +1,102 @@
+[
+  {
+    "method": "Network.loadingFailed",
+    "params": {
+      "requestId": "21988.2234",
+      "timestamp": 25688.098405,
+      "type": "Stylesheet",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED",
+      "canceled": false
+    }
+  },
+  {
+    "method": "Network.loadingFailed",
+    "params": {
+      "requestId": "21988.2255",
+      "timestamp": 25688.615018,
+      "type": "Stylesheet",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED",
+      "canceled": false
+    }
+  },
+  {
+    "method": "Network.loadingFailed",
+    "params": {
+      "requestId": "21988.2282",
+      "timestamp": 25693.819744,
+      "type": "Stylesheet",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED",
+      "canceled": false
+    }
+  },
+  {
+    "method": "Network.loadingFailed",
+    "params": {
+      "requestId": "21988.2306",
+      "timestamp": 25695.472811,
+      "type": "Stylesheet",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED",
+      "canceled": false
+    }
+  },
+  {
+    "method": "Network.loadingFailed",
+    "params": {
+      "requestId": "21988.2330",
+      "timestamp": 25697.413815,
+      "type": "Stylesheet",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED",
+      "canceled": false
+    }
+  },
+  {
+    "method": "Network.loadingFailed",
+    "params": {
+      "requestId": "21988.2354",
+      "timestamp": 25699.810374,
+      "type": "Stylesheet",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED",
+      "canceled": false
+    }
+  },
+  {
+    "method": "Network.loadingFailed",
+    "params": {
+      "requestId": "21988.2378",
+      "timestamp": 25702.833489,
+      "type": "Stylesheet",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED",
+      "canceled": false
+    }
+  },
+  {
+    "method": "Network.loadingFailed",
+    "params": {
+      "requestId": "21988.2403",
+      "timestamp": 25704.994536,
+      "type": "Stylesheet",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED",
+      "canceled": false
+    }
+  },
+  {
+    "method": "Network.loadingFailed",
+    "params": {
+      "requestId": "21988.2427",
+      "timestamp": 25709.665995,
+      "type": "Stylesheet",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED",
+      "canceled": false
+    }
+  },
+  {
+    "method": "Network.loadingFailed",
+    "params": {
+      "requestId": "21988.2451",
+      "timestamp": 25711.274044,
+      "type": "Stylesheet",
+      "errorText": "net::ERR_NETWORK_ACCESS_DENIED",
+      "canceled": false
+    }
+  }
+]

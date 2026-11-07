@@ -1,0 +1,21 @@
+[
+  {
+    "name": "Keyboard chart tooltip",
+    "value": {
+      "focused": "revenue-column ",
+      "focusVisible": true,
+      "rect": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "width": 0
+      }
+    },
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\chart-keyboard-tooltip-320.png"
+  },
+  {
+    "name": "Many long unit options",
+    "count": 101,
+    "screenshot": "D:\\Web\\TechKasirApp\\qa\\break-ui\\screenshots\\many-long-options-320.png"
+  }
+]
