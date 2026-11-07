@@ -1,0 +1,98 @@
+import { spawn } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import assert from 'node:assert/strict';
+import { once } from 'node:events';
+
+const temp = mkdtempSync(join(tmpdir(), 'techkasir-test-'));
+const port = 33821 + Math.floor(Math.random()*1000);
+const server = spawn(process.execPath, ['server.mjs'], { cwd: new URL('.', import.meta.url).pathname.replace(/^\/(\w:)/,'$1'), env: { ...process.env, TECHKASIR_DATA_DIR: temp, PORT: String(port) }, stdio: ['ignore','pipe','pipe'] });
+let stderr = '';
+server.stderr.on('data', x => stderr += x);
+const base = `http://127.0.0.1:${port}`;
+let cookie = '';
+async function request(path, method='GET', body, expected=200) {
+  const r = await fetch(base+path,{method,headers:{'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:body===undefined?undefined:JSON.stringify(body)});
+  if(r.headers.get('set-cookie')) cookie=r.headers.get('set-cookie').split(';')[0];
+  const value=(r.headers.get('content-type')||'').includes('application/json')?await r.json():await r.text();
+  assert.equal(r.status,expected,`${method} ${path}: ${JSON.stringify(value)}`);
+  return value;
+}
+try {
+  for(let i=0;i<60;i++){try{await fetch(base+'/api/bootstrap');break;}catch{await new Promise(r=>setTimeout(r,100));}}
+  const page=await request('/');
+  assert.match(page,/<link rel="stylesheet" href="\/style\.css">/);
+  const stylesheet = await request('/style.css');
+  assert.match(stylesheet,/\.nav button\s*\{/);
+  assert.match(stylesheet,/\.mobile-top,\.mobile-nav\s*\{\s*display:\s*none/);
+  assert.match(stylesheet,/@media\s*\(max-width:\s*760px\)[\s\S]*?\.mobile-nav\s*\{\s*display:\s*flex/);
+  assert.doesNotMatch(page,/<!-- APP_STYLES -->/);
+  assert.equal((await request('/api/bootstrap')).needsSetup,true);
+  await request('/api/setup','POST',{storeName:'Toko Uji',name:'Pemilik',username:'owner',password:'test-password-123',openingDate:'2026-01-01',openingAmount:500000},201);
+  await request('/api/login','POST',{username:'owner',password:'test-password-123'});
+  const customer=await request('/api/customers','POST',{name:'Dina Putri',phone:'08123456789'},201);
+  const unit=await request('/api/units','POST',{code:'U-001',category:'Laptop',model:'ThinkPad T14',intakeDate:'2026-11-07',purchaseAmount:2000000,repairAmount:200000,extraAmount:50000,targetAmount:3000000,status:'Siap dijual'},201);
+  const stock=await request('/api/units','POST',{code:'U-002',category:'HP',model:'Samsung A54',intakeDate:'2026-10-05',purchaseAmount:500000,repairAmount:0,extraAmount:0,targetAmount:750000,status:'Siap dijual'},201);
+  await request('/api/payments','POST',{sourceType:'unit',sourceId:stock.id,paidOn:'2026-10-05',amount:500000,method:'Transfer'},201);
+  const sale=await request('/api/sales','POST',{code:'J-001',unitId:unit.id,customerId:customer.id,soldOn:'2026-11-07',price:3000000,discount:100000,saleCost:50000,initialPayment:1000000,method:'Cash'},201);
+  await request('/api/sales','POST',{code:'J-002',unitId:unit.id,customerId:customer.id,soldOn:'2026-11-07',price:3000000,discount:0,saleCost:0,initialPayment:0},400);
+  let sales=await request('/api/sales');assert.equal(sales[0].remaining,1900000);assert.equal(sales[0].paid,1000000);
+  await request('/api/payments','POST',{sourceType:'sale',sourceId:sale.id,paidOn:'2026-12-02',amount:1900000,method:'Transfer'},201);
+  sales=await request('/api/sales');assert.equal(sales[0].remaining,0);
+  const service=await request('/api/services','POST',{code:'S-001',customerId:customer.id,receivedOn:'2026-11-07',category:'HP',model:'Samsung A54',complaint:'Layar rusak',estimateAmount:350000,partUnitCost:100000,partQty:1,partCharge:150000,serviceCharge:200000},201);
+  await request('/api/payments','POST',{sourceType:'service',sourceId:service.id,paidOn:'2026-11-07',amount:100000,method:'QRIS'},201);
+  await request(`/api/services/${service.id}`,'PATCH',{estimateAmount:50000,partUnitCost:100000,partQty:1,partCharge:150000,serviceCharge:200000,technicianCost:0},400);
+  let customers=await request('/api/customers');assert.equal(customers[0].advances,100000);assert.equal(customers[0].outstanding,0);
+  await request(`/api/services/${service.id}/status`,'PATCH',{status:'Selesai',completedOn:'2026-11-08'});
+  customers=await request('/api/customers');assert.equal(customers[0].advances,0);assert.equal(customers[0].outstanding,250000);
+  await request('/api/payments','POST',{sourceType:'service',sourceId:service.id,paidOn:'2026-11-09',amount:250000,method:'Cash'},201);
+  customers=await request('/api/customers');assert.equal(customers[0].outstanding,0);
+  const docs=await request('/api/payments');assert.equal(docs.length,5);assert.equal(new Set(docs.map(x=>x.document_number)).size,5);
+  const html=await request(`/document?type=payment&id=${docs[0].document_id}`);assert.match(html,/Kuitansi pembayaran/);
+  const dashboard=await request('/api/dashboard');assert.equal(dashboard.unitRevenue,2900000);assert.equal(dashboard.serviceRevenue,350000);assert.equal(dashboard.grossProfit,850000);assert.equal(dashboard.cash,3250000);
+  const report=await request('/api/reports?year=2026');assert.equal(report.months[9].inventory,500000);assert.equal(report.months[10].inventory,500000);assert.equal(report.months[10].netProfit,850000);
+  const installment=docs.find(x=>x.source_type==='sale'&&x.amount===1900000);
+  await request(`/api/payments/${installment.id}/reverse`,'POST',{paidOn:'2026-12-03',reason:'Transfer gagal'},201);
+  sales=await request('/api/sales');assert.equal(sales[0].remaining,1900000);
+  assert.equal((await request('/api/payments')).length,6);
+  assert.equal((await request('/api/dashboard')).cash,1350000);
+  const initialPayment=docs.find(x=>x.source_type==='sale'&&x.amount===1000000);
+  const correctionPath=`/api/payments/${initialPayment.id}/correct`;
+  const correction={paidOn:'2026-11-08',amount:900000,method:'QRIS',reference:'QR-123',reason:'Salah ketik nominal'};
+  await request(correctionPath,'POST',{...correction,amount:3000000},400);
+  assert.equal((await request('/api/payments')).length,6);
+  assert.equal((await request('/api/sales'))[0].remaining,1900000);
+  const replacement=await request(correctionPath,'POST',correction,201);
+  await request(correctionPath,'POST',correction,400);
+  const history=await request('/api/payments');
+  assert.equal(history.length,8);
+  assert.equal((await request('/api/sales'))[0].remaining,2000000);
+  const original=history.find(p=>p.id===initialPayment.id);
+  assert.equal(original.amount,1000000);
+  assert.equal(original.correction_reason,correction.reason);
+  const reversal=history.find(p=>p.id===original.reversed_by);
+  assert.equal(reversal.original_document_number,original.document_number);
+  assert.equal(reversal.paid_on,original.paid_on);
+  const corrected=history.find(p=>p.id===replacement.id);
+  assert.equal(corrected.details.person,'Dina Putri');
+  assert.equal(corrected.reference,correction.reference);
+  assert.equal(corrected.amount,correction.amount);
+  const correctedReport=await request('/api/reports?year=2026');
+  assert.equal(correctedReport.months[10].cashIn,report.months[10].cashIn-100000);
+  assert.equal(correctedReport.months[10].cashOut,report.months[10].cashOut);
+  await request('/api/users','POST',{username:'kasir',name:'Kasir Uji',role:'cashier',password:'cashier-test-123'},201);
+  await request('/api/logout','POST',{});await request('/api/me','GET',undefined,401);
+  await request('/api/login','POST',{username:'kasir',password:'cashier-test-123'});
+  await request('/api/dashboard','GET',undefined,403);
+  await request('/api/services','GET',undefined,403);
+  await request(`/api/payments/${replacement.id}/correct`,'POST',correction,403);
+  await request(`/document?type=payment&id=${docs.find(x=>x.source_type==='unit').document_id}`,'GET',undefined,403);
+  const cashierUnits=await request('/api/units');assert.equal('purchase_amount' in cashierUnits[0],false);
+  console.log('Integration checks passed: login, role access, unit sale, DP, service advance, customer balance, payment documents, cash and monthly reports.');
+} finally {
+  server.kill();
+  if(server.exitCode===null) await once(server,'exit');
+  if(stderr) process.stderr.write(stderr);
+  if(resolve(temp).startsWith(resolve(tmpdir()) + '\\')) { try { rmSync(temp,{recursive:true,force:true}); } catch(e) { console.warn('Temporary test data kept:',temp,e.code); } }
+}

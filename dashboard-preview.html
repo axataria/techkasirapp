@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F7F6F3">
+  <title>TechKasir · Pratinjau ringkasan</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400..700&amp;display=swap">
+  <style>
+    :root {
+      --paper: #fff;
+      --cream: #f7f6f3;
+      --ink: #37352f;
+      --muted: #686660;
+      --line: #e9e9e7;
+      --selection: oklch(93% .012 85);
+      --sand: #fef3c7;
+      --sand-ink: oklch(37% .06 75);
+      --s1: 4px;
+      --s2: 8px;
+      --s3: 16px;
+      --s4: 24px;
+      --s5: 40px;
+      --s6: 64px;
+      color: var(--ink);
+      background: var(--paper);
+      font: 16px/1.5 "Plus Jakarta Sans","Segoe UI",sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    h1, h2, p { margin: 0; }
+    p { text-wrap: pretty; }
+    .shell { display: grid; grid-template-columns: 230px minmax(0, 1fr); min-height: 100vh; }
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: var(--s4);
+      padding: var(--s4) var(--s3);
+      background: var(--cream);
+      border-inline-end: 1px solid var(--line);
+    }
+    .workspace { padding: var(--s1) var(--s2); }
+    .brand { font-size: 18px; font-weight: 650; }
+    .muted, .nav, .metric-label, .note { color: var(--muted); }
+    .muted, .nav, .metric-label, .note { font-size: 14px; }
+    .nav { display: grid; gap: var(--s1); padding: 0; margin: 0; list-style: none; }
+    .nav li { padding: var(--s2); border-radius: 4px; white-space: nowrap; }
+    .nav [aria-current] { color: var(--ink); background: var(--selection); font-weight: 600; }
+    .account { margin-top: auto; padding: var(--s3) var(--s2) 0; border-top: 1px solid var(--line); }
+    main { width: 100%; max-width: 1320px; margin-inline: auto; padding: var(--s6) clamp(24px, 5vw, 64px); }
+    .page-head { margin-bottom: var(--s5); }
+    .preview-label {
+      display: inline-block;
+      margin-bottom: var(--s3);
+      padding: var(--s1) var(--s2);
+      border-radius: 4px;
+      background: var(--sand);
+      color: var(--sand-ink);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    h1 {
+      font: 650 30px/1.2 "Plus Jakarta Sans","Segoe UI",sans-serif;
+      letter-spacing: -.035em;
+      text-wrap: balance;
+      margin-bottom: var(--s2);
+    }
+    h2 { font-size: 18px; line-height: 1.5; font-weight: 600; }
+    .metrics, .details { display: grid; gap: var(--s3); }
+    .metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: var(--s5); }
+    .block { min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: var(--s3); }
+    .featured { background: var(--cream); }
+    .value { margin-top: var(--s2); font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    dl { margin: var(--s2) 0 0; font-size: 14px; }
+    dl div { display: flex; justify-content: space-between; gap: var(--s3); padding: var(--s2) 0; }
+    dl div + div { border-top: 1px solid var(--line); }
+    dd { margin: 0; }
+    .note { margin-top: var(--s4); }
+    @media (max-width: 1050px) {
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .shell { display: block; }
+      .sidebar { gap: var(--s2); padding: var(--s2) var(--s3); border-inline-end: 0; border-bottom: 1px solid var(--line); }
+      .workspace { padding-inline: 0; }
+      .nav { display: flex; overflow-x: auto; }
+      .account { display: none; }
+      main { padding: var(--s4) var(--s3) var(--s5); }
+      .page-head, .metrics { margin-bottom: var(--s4); }
+      h1 { font-size: 24px; }
+      .details { grid-template-columns: minmax(0, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="workspace">
+        <div class="brand">TechKasir</div>
+        <div class="muted">[Nama toko]</div>
+      </div>
+      <ul class="nav" aria-label="Halaman TechKasir">
+        <li aria-current="page">Ringkasan</li>
+        <li>Pelanggan</li>
+        <li>Stok unit</li>
+        <li>Penjualan</li>
+        <li>Servis</li>
+        <li>Pembayaran</li>
+        <li>Keuangan</li>
+        <li>Laporan</li>
+        <li>Pengaturan</li>
+        <li>Log perubahan</li>
+        <li>Staf</li>
+      </ul>
+      <div class="account">
+        <strong>[Nama pengguna]</strong>
+        <div class="muted">Pemilik</div>
+      </div>
+    </aside>
+    <main>
+      <header class="page-head">
+        <span class="preview-label">Pratinjau desain</span>
+        <h1>Ringkasan toko</h1>
+        <p class="muted">Angka saat ini dari transaksi yang tercatat.</p>
+      </header>
+      <section class="metrics" aria-label="Ringkasan keuangan">
+        <div class="block"><div class="metric-label">Penjualan unit</div><div class="value">—</div></div>
+        <div class="block"><div class="metric-label">Pendapatan servis</div><div class="value">—</div></div>
+        <div class="block"><div class="metric-label">Total pendapatan</div><div class="value">—</div></div>
+        <div class="block"><div class="metric-label">Laba kotor</div><div class="value">—</div></div>
+        <div class="block featured"><div class="metric-label">Laba bersih</div><div class="value">—</div></div>
+        <div class="block"><div class="metric-label">Kas tercatat</div><div class="value">—</div></div>
+        <div class="block"><div class="metric-label">Piutang pelanggan</div><div class="value">—</div></div>
+        <div class="block"><div class="metric-label">Nilai persediaan</div><div class="value">—</div></div>
+      </section>
+      <div class="details">
+        <section class="block">
+          <h2>Stok unit</h2>
+          <dl>
+            <div><dt>Siap dijual</dt><dd>—</dd></div>
+            <div><dt>Dalam proses</dt><dd>—</dd></div>
+          </dl>
+        </section>
+        <section class="block">
+          <h2>Perlu perhatian</h2>
+          <dl>
+            <div><dt>Servis berjalan</dt><dd>—</dd></div>
+            <div><dt>Biaya operasional</dt><dd>—</dd></div>
+            <div><dt>Kerugian</dt><dd>—</dd></div>
+          </dl>
+        </section>
+      </div>
+      <p class="note">Tanda pisah menandai tempat angka transaksi dalam pratinjau ini.</p>
+    </main>
+  </div>
+</body>
+</html>
