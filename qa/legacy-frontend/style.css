@@ -1430,12 +1430,13 @@ input:focus, select:focus, textarea:focus {
   }
 }
 /* Home dashboard: compact bento composition using the active appearance tokens. */
-.dashboard-home { font-variant-numeric: tabular-nums; }
+.dashboard-home { font-variant-numeric: tabular-nums; container: dashboard / inline-size; }
 .dashboard-welcome { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:24px; }
 .dash-eyebrow { font-size:12px; line-height:16px; font-weight:600; color:var(--muted); letter-spacing:.08em; margin-bottom:12px; overflow-wrap:anywhere; }
 .dash-eyebrow span { margin:0 8px; }
 .dashboard-welcome h1 { font-size:30px; line-height:36px; margin-bottom:8px; overflow-wrap:anywhere; }
 .dashboard-welcome p { font-size:14px; line-height:20px; color:var(--muted); margin:0; }
+.dashboard-welcome>div:first-child { min-width:0; }
 .dash-date { text-align:right; font-size:12px; line-height:20px; flex-shrink:0; }
 .dash-date small { display:block; }
 .dashboard-toolbar { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:16px; font-size:12px; color:var(--muted); }
@@ -1502,14 +1503,31 @@ input:focus, select:focus, textarea:focus {
 .stock-line strong { text-align:right; font-weight:500; }
 .stock-meter { height:4px; background:var(--line); border-radius:2px; overflow:hidden; }
 .stock-meter i { display:block; height:100%; background:var(--control); }
-.dashboard-table { font-size:12px; line-height:16px; }
-.dashboard-table th { font-size:12px; white-space:nowrap; }
-.dashboard-table td,.dashboard-table th { padding:12px 8px; }
-.dashboard-table td:first-child,.dashboard-table th:first-child { padding-left:0; }
-.dashboard-table td:last-child,.dashboard-table th:last-child { padding-right:0; }
-.dashboard-table td { white-space:nowrap; }
-.dashboard-table strong { font-weight:500; }
-.dash-cell-sub { display:block; color:var(--muted); font-size:12px; margin-top:4px; max-width:160px; overflow:hidden; text-overflow:ellipsis; }
+.bento-activity { container: payments / inline-size; }
+.bento-activity .bento-heading { margin-bottom:16px; }
+.dash-payments { min-width:0; }
+.dashboard-table { width:100%; min-width:0; table-layout:fixed; font-size:14px; line-height:20px; }
+.dashboard-table th { background:transparent; font-size:12px; line-height:16px; font-weight:500; white-space:normal; padding:0 0 12px; }
+.dashboard-table th:first-child { width:58%; }
+.dashboard-table th:last-child { text-align:right; }
+.dashboard-table td { padding:16px 0; font-size:14px; line-height:20px; white-space:normal; vertical-align:top; }
+.dashboard-table td:first-child { padding-right:16px; }
+.dashboard-table tbody tr:last-child td { padding-bottom:0; }
+.dashboard-table strong { font-weight:600; }
+.dash-payment-identity { display:grid; gap:4px; min-width:0; }
+.dash-payment-identity>strong { overflow-wrap:anywhere; }
+.dash-cell-sub { display:block; color:var(--muted); font-size:12px; line-height:20px; overflow-wrap:anywhere; }
+.dash-payment-meta { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; color:var(--muted); font-size:12px; line-height:16px; margin-top:4px; }
+.dash-payment-total { display:flex; flex-direction:column; align-items:flex-end; gap:8px; text-align:right; }
+.dash-payment-total>strong { max-width:100%; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+.dash-payment-total .badge { max-width:100%; white-space:normal; text-align:left; }
+.dash-payment-total .badge.success { background:color-mix(in oklch,var(--badge-success) 12%,var(--paper)); color:var(--badge-success); }
+.dash-payment-total .badge.info { background:color-mix(in oklch,var(--badge-info) 12%,var(--paper)); color:var(--badge-info); }
+@container payments (max-width:380px) {
+  .dashboard-table th:first-child { width:52%; }
+  .dashboard-table td { font-size:12px; line-height:20px; }
+  .dashboard-table td:first-child { padding-right:12px; }
+}
 .dash-positive { color:var(--mint-ink); }
 .service-counters { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:16px; }
 .service-counters>div { background:var(--selection); border-radius:8px; padding:12px 8px; }
@@ -1528,29 +1546,26 @@ input:focus, select:focus, textarea:focus {
 .attention-note { background:var(--selection); padding:12px; border-radius:8px; font-size:12px; line-height:20px; color:var(--muted); overflow-wrap:anywhere; }
 .dashboard-bento .empty { padding:24px 8px; font-size:12px; line-height:20px; }
 .dashboard-footnote { font-size:12px; line-height:20px; color:var(--muted); margin:16px 0 0; }
-@media (min-width:1101px) and (max-width:1400px) {
-  .bento-revenue,.bento-sources,.bento-stock,.bento-activity,.bento-services,.bento-costs { grid-column:span 4; }
-  .bento-revenue,.bento-activity { grid-column:span 8; }
-  .bento-stock { grid-row:3; }
+@container dashboard (max-width:1199px) {
+  .dashboard-bento>.bento-stat,
+  .bento-sources,.bento-stock,.bento-services,.bento-costs { grid-column:span 6; }
+  .bento-revenue,.bento-activity { grid-column:1 / -1; }
 }
-@media (max-width:1100px) {
-  .dashboard-bento { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .dashboard-bento>.card { grid-column:span 1; }
-  .dashboard-bento>.bento-revenue,.dashboard-bento>.bento-activity { grid-column:span 2; }
+@container dashboard (max-width:760px) {
   .dash-date { display:none; }
-}
-@media (max-width:560px) {
-  .dashboard-welcome h1 { font-size:24px; line-height:32px; }
   .dashboard-toolbar { align-items:flex-start; flex-direction:column; }
-  .dashboard-toolbar>div { justify-content:space-between; width:100%; }
+  .dashboard-toolbar>div { justify-content:space-between; flex-wrap:wrap; width:100%; }
+}
+@container dashboard (max-width:620px) {
+  .dashboard-welcome { margin-bottom:16px; }
+  .dashboard-welcome h1 { font-size:24px; line-height:32px; }
   .dash-scope { display:none; }
   .dashboard-bento { gap:12px; }
-  .dashboard-bento>.card { padding:16px; }
+  .dashboard-bento>.card { grid-column:1 / -1; padding:16px; }
   .bento-value { font-size:20px; line-height:28px; }
   .bento-stat { gap:12px; }
   .bento-stat-top .nav-icon { display:none; }
   .bento-heading { margin-bottom:16px; }
-  .dashboard-bento>.bento-sources,.dashboard-bento>.bento-stock,.dashboard-bento>.bento-services,.dashboard-bento>.bento-costs { grid-column:span 2; }
   .revenue-chart { gap:4px; }
   .revenue-column>.month-label { font-size:10px; }
   .chart-tip { display:none !important; }
@@ -1565,16 +1580,8 @@ input:focus, select:focus, textarea:focus {
   .cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  @media (min-width: 1101px) {
-    .dashboard-bento>.bento-stat {
-      grid-column: span 6;
-    }
-  }
 }
 @container app-main (max-width: 620px) {
-  .dashboard-bento>.bento-stat {
-    grid-column: 1 / -1;
-  }
   .cards {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1596,7 +1603,6 @@ input:focus, select:focus, textarea:focus {
 .chart-selection { margin: 16px 0 0; padding: 12px; border-radius: 8px; background: var(--selection); color: var(--ink); font-size: 12px; line-height: 20px; }
 .revenue-column[aria-pressed="true"] .revenue-bar { background: var(--accent); }
 @media (max-width: 560px) {
-  .dashboard-bento>.bento-stat { grid-column: span 2; }
   .cards { grid-template-columns: minmax(0, 1fr); }
   .bento-value, .metric-value, .revenue-summary>strong { font-size: 20px; line-height: 28px; }
 }

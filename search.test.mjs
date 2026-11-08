@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { searchRecords } from './search.mjs';
+import { searchRecords } from './src/server/search.mjs';
 
 const records = Array.from({length:23},(_,i)=>({id:String(i),code:`U-${i}`,model:'Samsung',intake_date:'2026-10-05'}));
 const originalFetch = globalThis.fetch;

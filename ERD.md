@@ -1,5 +1,7 @@
 # Entity relationship diagram
 
+> Historical v1 logical model. The implemented v2 additions and current relationship diagram are documented in [V2.md](V2.md); schema and migration code live in `v2.mjs`.
+
 **Companion:** [PRD.md](PRD.md) · [WORKFLOWS.md](WORKFLOWS.md)  
 **Scope:** Logical MVP schema. Types are technology-neutral; `*_amount` values are nonnegative integer rupiah. Primary keys are stable UUIDs. `store_id` scopes all business data even though the MVP has one store.
 

@@ -3,13 +3,15 @@ const scopes = {
   sales: ['Penjualan', 'sales'], services: ['Servis', 'services'],
   payments: ['Pembayaran', 'payments'], expenses: ['Biaya operasional', 'finance'],
   incomes: ['Pendapatan lain', 'finance'], losses: ['Kerugian', 'finance'],
-  users: ['Staf', 'staff'], audit: ['Log perubahan', 'audit']
+  users: ['Staf', 'staff'], audit: ['Log perubahan', 'audit'],
+  'v2/warranties':['Garansi','warranties'],'v2/customer-returns':['Retur pelanggan','customer-returns'],
+  'v2/receiving':['Barang masuk','receiving'],'v2/qc':['QC','qc'],'v2/supplier-returns':['Retur supplier','supplier-returns']
 };
 const normalize = value => String(value ?? '').normalize('NFKC').toLowerCase();
 const tokens = value => normalize(value).match(/[\p{L}\p{N}+-]+/gu) || [];
 // Read through the existing API so search inherits store isolation, role checks,
 // and field redaction instead of maintaining a second set of access rules.
-export async function searchRecords({ query, offset = 0, role, read }) {
+export async function searchRecords({ query, offset = 0, role, read, includeV2 = false }) {
   const terms = tokens(query);
   const message = 'Hasil pencarian dari database toko sesuai akses Anda.';
   if (!terms.length) return { message, total: 0, offset, results: [], hasMore: false };
@@ -17,9 +19,11 @@ export async function searchRecords({ query, offset = 0, role, read }) {
   if (role !== 'service') allowed.push('sales');
   if (role !== 'cashier') allowed.push('services');
   if (role === 'owner') allowed.push('expenses','incomes','losses','users','audit');
+  if(includeV2){allowed.push('v2/warranties','v2/customer-returns');if(role!=='cashier')allowed.push('v2/receiving','v2/qc','v2/supplier-returns');}
   const matches = [];
   for (const scope of allowed) {
-    const rows = await read(scope);
+    const response = await read(scope);
+    const rows = Array.isArray(response)?response:response.claims||[];
     for (const row of rows) {
       const [label, page] = scopes[scope];
       const fields = Object.entries({ ...row, ...(row.details || {}) }).filter(([key,value]) =>

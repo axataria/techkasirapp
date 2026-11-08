@@ -1,5 +1,7 @@
 # App workflows
 
+> Historical v1 reference. Implemented v2 navigation, receiving/QC, warranties, returns, and accounting flows are documented in [V2.md](V2.md) and specified in [PRD-V2.md](PRD-V2.md).
+
 **Companion:** [PRD.md](PRD.md) · [ERD.md](ERD.md) · [DESIGN_REVIEW.md](DESIGN_REVIEW.md)  
 **Scope:** Single store MVP. The five accounting and return choices in PRD Section 11 remain provisional; the paths below use its proposed defaults.
 

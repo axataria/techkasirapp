@@ -1,10 +1,10 @@
-import * as domain from './public/domain.js';
+import * as domain from './shared/domain.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { setImmediate } from 'node:timers/promises';
 
-const appSource = readFileSync(new URL('./public/app.js', import.meta.url), 'utf8')
+const appSource = readFileSync(new URL('./qa/legacy-frontend/app.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '')
   .replace(/boot\(\)\.catch\([\s\S]*$/, '');
 const appContext = vm.createContext({
@@ -68,7 +68,7 @@ const searchContext = vm.createContext({
     body: { append() {} },
   },
 });
-vm.runInContext(readFileSync(new URL('./public/search.js', import.meta.url), 'utf8')
+vm.runInContext(readFileSync(new URL('./qa/legacy-frontend/search.js', import.meta.url), 'utf8')
   .replace('export function openSearch', 'function openSearch'), searchContext);
 
 let resolveRequest;

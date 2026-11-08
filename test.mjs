@@ -7,7 +7,7 @@ import { once } from 'node:events';
 
 const temp = mkdtempSync(join(tmpdir(), 'techkasir-test-'));
 const port = 33821 + Math.floor(Math.random()*1000);
-const server = spawn(process.execPath, ['server.mjs'], { cwd: new URL('.', import.meta.url).pathname.replace(/^\/(\w:)/,'$1'), env: { ...process.env, TECHKASIR_DATA_DIR: temp, PORT: String(port) }, stdio: ['ignore','pipe','pipe'] });
+const server = spawn(process.execPath, ['scripts/api-test-server.mjs'], { cwd: new URL('.', import.meta.url).pathname.replace(/^\/(\w:)/,'$1'), env: { ...process.env, TECHKASIR_DATA_DIR: temp, PORT: String(port) }, stdio: ['ignore','pipe','pipe'] });
 let stderr = '';
 server.stderr.on('data', x => stderr += x);
 const base = `http://127.0.0.1:${port}`;
@@ -21,13 +21,8 @@ async function request(path, method='GET', body, expected=200) {
 }
 try {
   for(let i=0;i<60;i++){try{await fetch(base+'/api/bootstrap');break;}catch{await new Promise(r=>setTimeout(r,100));}}
-  const page=await request('/');
-  assert.match(page,/<link rel="stylesheet" href="\/style\.css">/);
-  const stylesheet = await request('/style.css');
-  assert.match(stylesheet,/\.nav button\s*\{/);
-  assert.match(stylesheet,/\.mobile-top,\.mobile-nav\s*\{\s*display:\s*none/);
-  assert.match(stylesheet,/@media\s*\(max-width:\s*760px\)[\s\S]*?\.mobile-nav\s*\{\s*display:\s*flex/);
-  assert.doesNotMatch(page,/<!-- APP_STYLES -->/);
+  await request('/', 'GET', undefined, 404);
+  await request('/style.css', 'GET', undefined, 404);
   assert.equal((await request('/api/bootstrap')).needsSetup,true);
   await request('/api/search','POST',{query:'Samsung'},401);
   await request('/api/setup','POST',{storeName:'Toko Uji',name:'Pemilik',username:'owner',password:'test-password-123',openingDate:'2026-01-01',openingAmount:500000},201);

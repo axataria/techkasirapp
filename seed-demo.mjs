@@ -28,7 +28,7 @@ if (!report) {
 const token = randomBytes(32).toString('hex');
 const tokenHash = createHash('sha256').update(token).digest('hex');
 db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(tokenHash, owner.id, new Date(Date.now() + 3600000).toISOString(), new Date().toISOString());
-const server = spawn(process.execPath, ['server.mjs'], { cwd: root, env: { ...process.env, TECHKASIR_DATA_DIR: dataDir, HOST: '127.0.0.1', PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+const server = spawn(process.execPath, ['scripts/api-test-server.mjs'], { cwd: root, env: { ...process.env, TECHKASIR_DATA_DIR: dataDir, HOST: '127.0.0.1', PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
 let base, stderr = '';
 server.stderr.on('data', chunk => stderr += chunk);
 async function request(path, method = 'GET', body, expected = 200) {

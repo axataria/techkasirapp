@@ -1,5 +1,11 @@
 data/
 .env
+node_modules/
 .pnpm-store/
 qa/**/browser-profile/
 qa/**/isolated-data/
+
+.next/
+next-env.d.ts
+*.tsbuildinfo
+qa/next-preview/

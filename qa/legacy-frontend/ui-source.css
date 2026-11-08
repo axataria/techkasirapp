@@ -1,0 +1,213 @@
+/* Tailwind-built component layer. Preserve the existing application layout. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "../public/*.js";
+@source "../public/index.html";
+
+/* shadcn-style semantic roles, mapped to the app's saved appearance settings. */
+@theme inline {
+  --color-background: var(--paper);
+  --color-foreground: var(--ink);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--paper);
+  --color-secondary: var(--selection);
+  --color-muted-foreground: var(--muted);
+  --color-border: var(--line);
+  --color-input: var(--ui-input);
+  --color-ring: var(--focus);
+  --color-destructive: var(--danger);
+}
+
+:root {
+  --ui-input: color-mix(in oklch, var(--ink) 18%, var(--paper));
+  --ui-hover: color-mix(in oklch, var(--ink) 5%, var(--paper));
+  --ui-ring: color-mix(in oklch, var(--focus) 25%, transparent);
+  --ui-ease: cubic-bezier(.22, 1, .36, 1);
+}
+
+/* Button / ButtonGroup: one scale and explicit visual hierarchy. */
+.button {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-transparent px-4 py-2 text-sm font-medium;
+  min-height: 44px;
+  line-height: 20px;
+  box-shadow: none;
+  text-decoration: none;
+  transition: background-color 150ms var(--ui-ease), color 150ms var(--ui-ease), border-color 150ms var(--ui-ease);
+}
+.button.primary {
+  @apply bg-primary text-primary-foreground;
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .08);
+}
+.button.secondary {
+  @apply border-input bg-background text-foreground;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .03);
+}
+.button.ghost {
+  @apply border-transparent bg-transparent text-muted-foreground;
+  box-shadow: none;
+}
+.button.destructive {
+  @apply border-transparent bg-destructive;
+  color: var(--paper);
+}
+.button.tiny { @apply rounded-md px-3 py-2 text-xs; min-height:36px; }
+.button:disabled { cursor:not-allowed; opacity:.5; box-shadow:none; }
+.button[disabled][type="submit"] { cursor:progress; }
+.button:focus-visible,.account-option:focus-visible,.account-trigger:focus-visible {
+  outline:2px solid var(--focus);
+  outline-offset:2px;
+  box-shadow:0 0 0 4px var(--ui-ring);
+}
+.button:not(:disabled):active { transform:none; }
+.button svg { flex-shrink:0; }
+@media (hover:hover) and (pointer:fine) {
+  .button.primary:not(:disabled):hover { background:var(--accent-hover); }
+  .button.secondary:not(:disabled):hover,.button.ghost:not(:disabled):hover { background:var(--ui-hover); color:var(--ink); }
+  .button.destructive:not(:disabled):hover { filter:brightness(.92); }
+}
+@media (hover:none) {
+  .button.primary:hover { background:var(--accent); }
+  .button.secondary:hover { background:var(--paper); }
+  .button.ghost:hover { background:transparent; }
+}
+
+/* Input / NativeSelect: solid surfaces and coordinated focus / invalid states. */
+label { @apply text-sm font-medium; gap:8px; }
+input:not([type="checkbox"]):not([type="radio"]),select,textarea {
+  @apply rounded-lg border border-input bg-background px-3 py-2 text-sm font-normal text-foreground;
+  min-height:44px;
+  line-height:20px;
+  box-shadow:0 1px 2px rgb(0 0 0 / .02);
+  transition:border-color 150ms var(--ui-ease), box-shadow 150ms var(--ui-ease);
+}
+input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:focus {
+  outline:none;
+  border-color:var(--focus);
+  box-shadow:0 0 0 3px var(--ui-ring);
+}
+input::placeholder,textarea::placeholder { color:var(--muted); opacity:.75; }
+input:disabled,select:disabled,textarea:disabled { cursor:not-allowed; opacity:.55; }
+input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="true"] { border-color:var(--danger); }
+select {
+  appearance:none;
+  padding-right:40px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2371717a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m8 9 4-4 4 4m-8 6 4 4 4-4'/%3E%3C/svg%3E");
+  background-position:right 12px center;
+  background-repeat:no-repeat;
+  background-size:16px;
+}
+.hint { @apply text-xs font-normal text-muted-foreground; line-height:20px; margin:0; }
+
+/* Search / InputGroup: shared across global, customer, catalogue and table search. */
+.search-field,.ui-search,.data-table-search {
+  @apply relative flex items-center gap-2 rounded-lg border border-input bg-background;
+  min-width:0;
+  min-height:44px;
+  padding:0 12px;
+  box-shadow:0 1px 2px rgb(0 0 0 / .02);
+}
+.ui-search::before,.data-table-search::before {
+  content:"";
+  flex:0 0 16px;
+  width:16px;
+  height:16px;
+  background:var(--muted);
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m16 16 5 5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.search-field .nav-icon { width:16px; height:16px; color:var(--muted); flex-shrink:0; }
+.search-field:focus-within,.ui-search:focus-within,.data-table-search:focus-within {
+  outline:none;
+  border-color:var(--focus);
+  box-shadow:0 0 0 3px var(--ui-ring);
+}
+.search-field input[type="search"],.ui-search input[type="search"],.data-table-search input[type="search"] {
+  width:100%;
+  min-width:0;
+  max-width:none;
+  min-height:42px;
+  padding:8px 0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  outline:none;
+}
+.search-field input[type="search"]:focus,.ui-search input[type="search"]:focus,.data-table-search input[type="search"]:focus { border:0; box-shadow:none; outline:none; }
+.search-input-row { align-items:stretch; gap:8px; }
+.search-input-row .search-field { width:auto; }
+.search-examples { gap:8px; }
+.search-examples .button { min-height:32px; padding:4px 8px; background:var(--ui-hover); border-color:transparent; }
+.search-result { @apply rounded-lg border-border bg-background p-4; }
+.search-result h3 { @apply text-sm font-semibold; margin:12px 0 4px; }
+.search-result p { @apply text-sm text-muted-foreground; margin:0 0 12px; }
+.search-result details { @apply text-xs text-muted-foreground; }
+.search-result details[open] { margin-bottom:12px; }
+
+/* Dialog: opaque content, restrained shadow, calm sticky action footer. */
+dialog {
+  @apply rounded-xl border border-border bg-background text-foreground;
+  background-image:none;
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
+  box-shadow:0 24px 64px rgb(0 0 0 / .16),0 4px 16px rgb(0 0 0 / .08);
+  width:min(calc(100vw - 32px),560px);
+}
+dialog.search-dialog { width:min(calc(100vw - 32px),720px); }
+dialog::backdrop { background:rgb(0 0 0 / .45); backdrop-filter:none; -webkit-backdrop-filter:none; }
+dialog .dialog-body { padding:24px; }
+.modal-heading,.search-heading { align-items:flex-start; gap:16px; margin-bottom:24px; }
+.modal-heading h2,.search-heading h2 { @apply text-lg font-semibold; line-height:28px; margin:4px 0 0; }
+.search-heading p { @apply text-sm text-muted-foreground; margin:4px 0 0; line-height:20px; }
+.modal-close.button { width:36px; min-height:36px; padding:8px; flex-basis:36px; }
+.modal-close svg { width:16px; height:16px; }
+dialog form { gap:16px; }
+dialog form .form-actions {
+  margin:8px -24px -24px;
+  padding:16px 24px;
+  gap:8px;
+  border-color:var(--line);
+  background:var(--paper);
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+.message { @apply rounded-lg border px-4 py-3 text-sm; line-height:20px; box-shadow:none; }
+.message.error { border-color:color-mix(in oklch,var(--danger) 25%,var(--paper)); background:color-mix(in oklch,var(--danger) 5%,var(--paper)); color:var(--danger); }
+
+/* DropdownMenu: use the same surface and row treatment as Dialog / Select. */
+.account-options,.data-table-actions {
+  @apply rounded-lg border border-border bg-background p-1 text-foreground;
+  background-image:none;
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+  box-shadow:0 8px 24px rgb(0 0 0 / .1),0 2px 6px rgb(0 0 0 / .04);
+}
+.account-menu-heading { padding:12px; margin-bottom:4px; border-bottom:1px solid var(--line); }
+.account-menu-heading strong { @apply text-sm font-medium; }
+.account-menu-heading small { @apply text-xs text-muted-foreground; }
+.account-option { @apply rounded-md px-3 py-2 text-sm font-normal; min-height:40px; }
+.account-option.account-signout { background:transparent; color:var(--danger); margin-top:4px; }
+.account-option.account-signout:hover { background:color-mix(in oklch,var(--danger) 7%,var(--paper)); color:var(--danger); }
+.data-table-actions .button { @apply justify-start border-transparent bg-transparent text-foreground; box-shadow:none; }
+.v2-tabs { gap:4px; }
+.v2-tabs .button.ghost { border-color:transparent; }
+.v2-catalog-tools { align-items:center; }
+.v2-catalog-tools>.ui-search { height:44px; min-height:44px; }
+.v2-catalog-tools>.ui-search input[type="search"] { height:42px; min-height:42px; }
+.v2-catalog-tools>label:has(>select) { height:44px; }
+.v2-catalog-tools>label>select { height:44px; min-height:44px; }
+.v2-view-toggle { height:44px; padding:0; border:0; border-radius:8px; background:transparent; }
+.v2-view-toggle .button { border-radius:4px; }
+.v2-checkout { @apply text-sm font-semibold; min-height:48px; }
+
+@media (hover:hover) and (pointer:fine) {
+  .account-option:hover,.data-table-actions .button:hover { background:var(--ui-hover); }
+}
+@media (max-width:760px),(any-pointer:coarse) {
+  .button.tiny,.account-option,.modal-close.button { min-height:44px; }
+  .modal-close.button { width:44px; flex-basis:44px; }
+  input:not([type="checkbox"]):not([type="radio"]),select,textarea { font-size:16px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .button,input,select,textarea { transition:none; }
+}

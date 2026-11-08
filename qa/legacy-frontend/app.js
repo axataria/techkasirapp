@@ -1,3 +1,4 @@
+import { createV2UI } from './v2.js';
 import { themeSettings } from './theme.js';
 import { openSearch } from './search.js';
 import { enhanceTables, resetTables } from './data-table.js';
@@ -22,6 +23,13 @@ const navIcons = {
   logout: '<path d="M9 4H4v16h5M9 12h12m-5-5 5 5-5 5"/>',
   panel: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path class="toggle-arrow" d="m15 9-3 3 3 3"/>'
 };
+Object.assign(navIcons, {
+ orders: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+ warranties: '<path d="m12 3 8 4v5c0 5-8 9-8 9s-8-4-8-9V7l8-4Z"/>',
+ 'customer-returns': '<path d="M20 12H4m6-6-6 6 6 6M4 21h16"/>',
+ receiving: '<path d="M12 3v13m-6-6 6 6 6-6M4 21h16"/>',qc: '<path d="m4 12 5 5L20 6"/>',
+ 'supplier-returns': '<path d="M4 12h16m-6-6 6 6-6 6M4 21h16"/>'
+});
 const navIcon = name => `<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${navIcons[name]}</svg>`;
 let sidebarMotion;
 function toggleSidebar(animate = true) {
@@ -71,9 +79,12 @@ function field(label,name,type='text',opts={}) {
   return `<label class="${opts.wide?'wide':''}"><span>${esc(label)}${opts.required?'<span class="required-marker" aria-hidden="true">*</span>':''}</span><input name="${name}" type="${isCurrency?'text':type}" value="${esc(value)}" ${opts.required?'required':''} ${type==='number'?'min="0" step="1"':''} ${type==='date'?'max="9999-12-31"':''} ${maximumLength} ${isCurrency?currency:''} ${opts.placeholder?`placeholder="${esc(opts.placeholder)}"`:''}>${dateHint}</label>`;
 }
 function select(label, name, options, required = true) {
-  const guidance = name === 'unitId'
-    ? 'Tambahkan unit berstatus Siap dijual melalui menu Stok unit.'
-    : 'Tambahkan data pelanggan melalui menu Pelanggan.';
+  const guidance = {
+    unitId:'Tambahkan unit berstatus Siap dijual melalui menu Stok unit.',
+    customerId:'Tambahkan data pelanggan melalui menu Pelanggan.',
+    supplierId:'Tambahkan supplier melalui menu Barang masuk.',
+    productId:'Tambahkan produk melalui menu Produk.',
+  }[name] || `Belum ada pilihan ${label.toLocaleLowerCase('id')}.`;
   const hint = options.length ? '' : `<span class="hint">${guidance}</span>`;
   return `<label><span>${esc(label)}${required?'<span class="required-marker" aria-hidden="true">*</span>':''}</span>
     <select name="${name}" ${required ? 'required' : ''}>
@@ -91,18 +102,14 @@ async function api(path,opts={}) { const res=await fetch('/api'+path,{credential
 const post = (path,body,method='POST') => api(path,{method,body:JSON.stringify(body)});
 function notice(message,error=false) { state.notice=message; state.error=error; render(); window.scrollTo({top:0,behavior:'instant'}); }
 function formData(form) { return new FormData(form); }
+const navParent = page => ({services:'orders',payments:'reports',finance:'reports',staff:'settings',audit:'settings'})[page]||page;
 function navItems() { const role=state.me.role; return [
-  role==='owner'&&['dashboard','Ringkasan'],
-  ['customers','Pelanggan'],
-  ['units','Stok unit'],
-  role!=='service'&&['sales','Penjualan'],
-  role!=='cashier'&&['services','Servis'],
-  ['payments','Pembayaran'],
-  role==='owner'&&['finance','Keuangan'],
-  role==='owner'&&['reports','Laporan'],
-  role==='owner'&&['settings','Pengaturan'],
-  role==='owner'&&['audit','Log perubahan'],
-  role==='owner'&&['staff','Staf']
+  role==='owner'&&['dashboard','Dasbor'],role!=='service'&&['sales','Kasir'],
+  ['orders','Riwayat pesanan'],['customers','Pelanggan'],['warranties','Garansi'],
+  ['customer-returns','Retur pelanggan'],['units','Produk'],
+  role!=='cashier'&&['receiving','Barang masuk'],role!=='cashier'&&['qc','QC'],
+  role!=='cashier'&&['supplier-returns','Retur supplier'],
+  role==='owner'&&['reports','Report'],['settings','Pengaturan']
 ].filter(Boolean); }
 function accountMenu() {
   const role = state.me.role === 'owner' ? 'Pemilik' : state.me.role === 'cashier' ? 'Kasir' : 'Staf servis';
@@ -132,13 +139,14 @@ function dismissAccountMenu() {
 window.addEventListener('resize', dismissAccountMenu);
 window.addEventListener('scroll', dismissAccountMenu, true);
 function shell(content) {
-  const nav = navItems().map(([id,label]) => `<button type="button" data-page="${id}" aria-label="${label}" data-tooltip="${label}" ${state.page===id?'aria-current="page"':''} class="${state.page===id?'active':''}">${navIcon(id)}<span class="nav-label">${label}</span></button>`).join('');
+  const nav = navItems().map(([id,label]) => `<button type="button" data-page="${id}" aria-label="${label}" data-tooltip="${label}" ${navParent(state.page)===id?'aria-current="page"':''} class="${navParent(state.page)===id?'active':''}">${navIcon(id)}<span class="nav-label">${label}</span></button>`).join('');
   const toggleLabel = state.sidebarCollapsed ? 'Buka sidebar' : 'Tutup sidebar';
   return `<div class="shell ${state.sidebarCollapsed?'sidebar-collapsed':''}"><aside class="sidebar"><div class="sidebar-surface"></div><div class="sidebar-header"><div class="sidebar-brand-row"><div class="brand sidebar-label">Tech<span>Kasir</span></div><button type="button" class="sidebar-toggle" data-action="toggle-sidebar" aria-label="${toggleLabel}" data-tooltip="${toggleLabel}" aria-expanded="${!state.sidebarCollapsed}" aria-controls="sidebar-nav">${navIcon('panel')}</button></div><div class="store-name sidebar-label">${esc(state.me.store)}</div></div><nav id="sidebar-nav" class="nav" aria-label="Navigasi utama">${nav}</nav></aside><div class="shell-content"><header class="app-top"><div class="brand mobile-brand">Tech<span>Kasir</span></div><button type="button" class="button secondary global-search-trigger" data-action="global-search" aria-label="Cari data" title="Cari data (Ctrl+K / Cmd+K)" aria-keyshortcuts="Control+k Meta+k"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button>${accountMenu()}</header><nav class="mobile-nav" aria-label="Navigasi seluler">${nav}</nav><main class="main">${state.notice?`<div class="message ${state.error?'error':'success'}" role="status">${esc(state.notice)}</div>`:''}${content}</main></div></div><dialog id="modal" aria-labelledby="modal-title"><div class="dialog-body"></div></dialog>`;
 }
 function authScreen(setup) { return `<div class="auth-wrap"><div class="auth-card"><div class="brand">Tech<span>Kasir</span></div><h1>${setup?'Siapkan toko':'Masuk ke toko'}</h1><p>${setup?'Buat akun pemilik untuk memulai.':'Masuk dengan akun staf Anda.'}</p>${state.notice?`<div class="message ${state.error?'error':'success'}">${esc(state.notice)}</div>`:''}<form data-form="${setup?'setup':'login'}">${setup?field('Nama toko','storeName','text',{required:true})+field('Nama pemilik','name','text',{required:true})+field('Tanggal saldo awal','openingDate','date',{required:true,value:today()})+field('Saldo kas awal','openingAmount','currency',{required:true,value:0}):''}${field('Username','username','text',{required:true})}${field('Kata sandi','password','password',{required:true})}<button class="button primary" type="submit">${setup?'Buat toko':'Masuk'}</button></form></div></div>`; }
-async function boot() { const b=await api('/bootstrap'); if(b.needsSetup){state.page='setup';render();return;} try{state.me=await api('/me');state.page=state.me.role==='owner'?'dashboard':state.me.role==='service'?'services':'sales';await loadPage();}catch{state.page='login';render();} }
-async function loadPage() { state.notice=''; const p=state.page; try {
+async function boot() { const b=await api('/bootstrap'); if(b.needsSetup){state.page='setup';render();return;} try{state.me=await api('/me');state.page=state.me.role==='owner'?'dashboard':state.me.role==='service'?'orders':'sales';await loadPage();}catch{state.page='login';render();} }
+async function loadPage() { state.notice=''; const p=state.page; state.pageError='';state.loading=true;render();try {
+  if(v2ui)await v2ui.load();
   if(p==='dashboard') {
     const year=Number(today().slice(0,4));
     const [dashboard, dashboardReport, dashboardUnits, dashboardServices, dashboardPayments]=await Promise.all([
@@ -147,8 +155,8 @@ async function loadPage() { state.notice=''; const p=state.page; try {
     Object.assign(state.data,{dashboard,dashboardReport,dashboardUnits,dashboardServices,dashboardPayments});
   }
   if(p==='customers') { state.data.customers=await api('/customers'); state.data.payments=await api('/payments'); }
-  if(p==='units') state.data.units=await api('/units');
-  if(p==='sales') { const [sales,units,customers]=await Promise.all([api('/sales'),api('/units'),api('/customers')]);Object.assign(state.data,{sales,units,customers}); }
+  if(p==='units' && !v2ui) state.data.units=await api('/units');
+  if(p==='sales' && !v2ui) { const [sales,units,customers]=await Promise.all([api('/sales'),api('/units'),api('/customers')]);Object.assign(state.data,{sales,units,customers}); }
   if(p==='services') { const [services,customers]=await Promise.all([api('/services'),api('/customers')]);Object.assign(state.data,{services,customers}); }
   if(p==='payments') state.data.payments=await api('/payments');
   if(p==='finance') { const [expenses,incomes,losses]=await Promise.all([api('/expenses'),api('/incomes'),api('/losses')]);Object.assign(state.data,{expenses,incomes,losses}); }
@@ -156,8 +164,8 @@ async function loadPage() { state.notice=''; const p=state.page; try {
   if(p==='settings' && state.me.role==='owner') state.data.opening=await api('/opening');
   if(p==='audit') state.data.audit=await api('/audit');
   if(p==='staff') state.data.users=await api('/users');
-  render();
-}catch(e){notice(e.message,true);} }
+  state.loading=false;render();
+}catch(e){state.loading=false;state.pageError=e.message;render();} }
 function selectChartMonth(event) {
   const button = event.target.closest('[data-chart-month]');
   if (!button) return;
@@ -191,11 +199,16 @@ function dashboard() {
     const label = months[index] + ' ' + report.year + '. Pendapatan ' + fmt(month.totalRevenue) + '. Laba bersih ' + fmt(month.netProfit);
     return `<button type="button" class="revenue-column ${month.month===monthKey?'current':''}" data-chart-month="${index}" aria-label="${esc(label)}" aria-pressed="false"><span class="revenue-track"><span class="revenue-bar" style="height:${Math.max(0,Number(month.totalRevenue))/max*100}%"></span></span><span class="month-label">${months[index]}</span><span class="chart-tip">${months[index]} ${report.year}<strong>${fmt(month.totalRevenue)}</strong><small>Laba bersih ${fmt(month.netProfit)}</small></span></button>`;
   }).join('');
-  const stockStatuses=['Siap dijual','Dalam perbaikan','Belum dikerjakan','Menunggu sparepart','Minus / rusak','Retur'];
+  const stockStatuses=['Siap dijual','Menunggu QC','Dalam perbaikan','Belum dikerjakan','Menunggu sparepart','Minus / rusak','Karantina retur','Karantina supplier','Retur'];
   const unsold=units.filter(x=>!x.sale_id);
   const stockRows=stockStatuses.map(status=>{const count=unsold.filter(x=>x.status===status).length;return `<div class="stock-line"><span>${status}</span><div class="stock-meter"><i style="width:${percent(count,unsold.length)}%"></i></div><strong>${count}</strong></div>`;}).join('');
   const serviceRows=active.slice().sort((a,b)=>a.received_on.localeCompare(b.received_on)).slice(0,4).map(x=>`<div class="service-line"><span class="device-symbol">${navIcon('services')}</span><div><strong>${esc(x.model)}</strong><small>${esc(x.code)} · ${esc(x.customer_name)}</small></div>${badge(x.status)}</div>`).join('');
-  const paymentRows=payments.slice(0,5).map(x=>tr([`<strong>${esc(x.details?.source||x.document_number)}</strong><span class="dash-cell-sub">${esc(x.details?.person||x.source_type)}</span>`,esc(x.paid_on),esc(x.method),`<span class="${x.direction==='OUT'?'negative':'dash-positive'}">${x.direction==='OUT'?'−':'+'} ${fmt(x.amount)}</span>`,x.reversed_by?badge('Dikoreksi'):x.original_document_number?badge('Pembalikan'):badge(x.direction==='IN'?'Masuk':'Keluar')])).join('');
+  const paymentRows=payments.slice(0,5).map(x=>{
+    const source=x.details?.source||x.document_number,person=x.details?.person||x.source_type;
+    const date=new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(x.paid_on+'T00:00:00Z'));
+    const status=x.reversed_by?badge('Dikoreksi'):x.original_document_number?badge('Pembalikan'):badge(x.direction==='IN'?'Masuk':'Keluar');
+    return tr([`<div class="dash-payment-identity"><strong>${esc(source)}</strong><span class="dash-cell-sub">${esc(person)}</span><div class="dash-payment-meta"><time datetime="${esc(x.paid_on)}">${esc(date)}</time><span aria-hidden="true">·</span><span>${esc(paymentMethod(x.method))}</span></div></div>`,`<div class="dash-payment-total"><strong class="${x.direction==='OUT'?'negative':'dash-positive'}">${x.direction==='OUT'?'−':'+'} ${fmt(x.amount)}</strong>${status}</div>`]);
+  }).join('');
   return `<div class="dashboard-home"><header class="dashboard-welcome"><div><div class="dash-eyebrow">RINGKASAN TOKO <span>·</span> ${esc(state.me.store)}</div><h1>${dashboardWelcome(now)}</h1><p>Semua yang perlu Anda pantau, dalam satu tempat.</p></div><div class="dash-date"><span>${esc(dateLabel)}</span><small>Waktu Indonesia Barat</small></div></header>
     <div class="dashboard-toolbar"><span><i class="live-dot"></i> Data transaksi tersimpan <span class="dash-scope">· Total seluruh periode</span></span><div>${jump('Lihat laporan','reports')}<button class="button primary" data-page="sales">${navIcon('sales')} Catat penjualan</button></div></div>
     <div class="dashboard-bento">
@@ -203,10 +216,11 @@ function dashboard() {
       ${stat('Laba bersih',d.netProfit,'finance',`Margin bersih <strong>${margin}</strong>`)}
       ${stat('Kas tercatat',d.cash,'payments','Saldo awal + kas masuk − kas keluar')}
       ${stat('Piutang pelanggan',d.receivables,'customers',jump('Kelola pembayaran','payments'))}
+      ${v2ui?.dashboardExtras()||''}
       <section class="card bento-revenue">${title('Tren pendapatan',`Januari sampai Desember ${report.year}`,jump('Detail','reports'))}<div class="revenue-summary"><strong>${fmt(current.totalRevenue)}</strong><span>Bulan ini <b>·</b> ${months[Number(monthKey.slice(5))-1]} ${report.year}</span></div><div class="revenue-chart" role="img" aria-label="Pendapatan bulanan ${report.year}: ${esc(report.months.map((m,i)=>months[i]+' '+fmt(m.totalRevenue)).join('; '))}">${chart}</div><p class="chart-selection" id="chart-selection" role="status">Pilih bulan pada grafik untuk melihat rinciannya.</p>${report.months.every(x=>!x.totalRevenue)?'<p class="dash-empty-note">Belum ada pendapatan tercatat pada tahun ini.</p>':''}<div class="chart-footer"><span><i class="chart-key"></i> Pendapatan bulanan</span><span>Laba bersih bulan ini <strong class="${current.netProfit<0?'negative':''}">${fmt(current.netProfit)}</strong></span></div></section>
       <section class="card bento-sources">${title('Sumber pendapatan','Komposisi seluruh periode')}<strong class="source-total">${fmt(d.totalRevenue)}</strong><div class="source-stack" aria-hidden="true">${sources.map(([,v,c])=>`<span class="source-${c}" style="width:${percent(v,d.totalRevenue)}%"></span>`).join('')}</div><div class="source-list">${sources.map(([label,v,c])=>`<div><span><i class="source-dot source-${c}"></i>${label}</span><strong>${fmt(v)}</strong><small>${percent(v,d.totalRevenue)}%</small></div>`).join('')}</div><div class="source-bottom"><span>Laba kotor</span><strong>${fmt(d.grossProfit)}</strong></div></section>
       <section class="card bento-stock">${title('Kesehatan stok',`${unsold.length} unit belum terjual`,jump('Stok','units'))}<div class="stock-summary"><strong>${d.available||0}<small>siap dijual</small></strong><div><span>Nilai persediaan</span><b>${fmt(d.inventoryValue)}</b></div></div><div class="stock-breakdown">${stockRows}</div></section>
-      <section class="card bento-activity">${title('Pembayaran terbaru','Termasuk koreksi dan pembalikan',jump('Semua','payments'))}${payments.length?`<div class="table-wrap"><table class="dashboard-table"><thead><tr><th>Transaksi / pelanggan</th><th>Tanggal</th><th>Metode</th><th>Nominal</th><th>Status</th></tr></thead><tbody>${paymentRows}</tbody></table></div>`:empty('Belum ada pembayaran','Pembayaran yang dicatat akan muncul di sini.')}</section>
+      <section class="card bento-activity">${title('Pembayaran terbaru','Termasuk koreksi dan pembalikan',jump('Semua','payments'))}${payments.length?`<div class="dash-payments"><table class="dashboard-table" aria-label="Pembayaran terbaru"><thead><tr><th scope="col">Transaksi / pelanggan</th><th scope="col">Nominal / status</th></tr></thead><tbody>${paymentRows}</tbody></table></div>`:empty('Belum ada pembayaran','Pembayaran yang dicatat akan muncul di sini.')}</section>
       <section class="card bento-services">${title('Antrean servis',`${active.length} pekerjaan aktif`,jump('Servis','services'))}<div class="service-counters"><div><strong>${active.filter(x=>x.status==='Dalam pengerjaan').length}</strong><span>Dikerjakan</span></div><div><strong>${active.filter(x=>x.status==='Menunggu sparepart').length}</strong><span>Menunggu part</span></div><div><strong>${services.filter(x=>x.status==='Selesai').length}</strong><span>Selesai</span></div></div>${serviceRows||empty('Antrean kosong','Belum ada servis yang sedang berjalan.')}</section>
       <section class="card bento-costs">${title('Biaya & perhatian','Total seluruh periode',jump('Keuangan','finance'))}<div class="cost-line"><span>Biaya operasional</span><strong>${fmt(d.expenses)}</strong></div><div class="cost-line"><span>Kerugian tercatat</span><strong class="${d.losses?'negative':''}">${fmt(d.losses)}</strong></div><div class="cost-line"><span>Unit dalam proses</span><strong>${d.inProcess||0} unit</strong></div><div class="attention-note">${d.receivables>0?`${fmt(d.receivables)} piutang belum lunas. Tinjau pembayaran pelanggan.`:'Tidak ada piutang pelanggan yang belum lunas.'}</div></section>
     </div><p class="dashboard-footnote">Ringkasan keuangan mencakup seluruh transaksi. Grafik mengikuti tahun ${report.year}. Pendapatan servis diakui saat pekerjaan selesai.</p></div>`;
@@ -252,7 +266,7 @@ function showPayment(p) {
     ['Sisa saat dokumen dibuat',fmt(d.remaining)], ['Dokumen asal',p.original_document_number], ['Alasan koreksi',p.correction_reason],
   ];
   const details = entries.map(([label,value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value || '—')}</dd></div>`).join('');
-  const canCorrect = state.me.role === 'owner' && !p.reversed_by && !p.original_document_number;
+  const canCorrect = state.me.role === 'owner' && !p.reversed_by && !p.original_document_number && !['customer_refund','supplier_refund'].includes(p.source_type) && !(state.data.sales||[]).some(s=>s.id===p.source_id&&s.returned_on);
   const attrs = `data-id="${esc(p.id)}" data-label="${esc(p.document_number)}"`;
   const actions = canCorrect ? btn('Koreksi pembayaran','correct-payment','secondary',attrs) + btn('Batalkan pembayaran','reverse-payment','ghost',attrs) : '';
   modal(p.document_number, `<dl class="payment-details">${details}</dl><div class="row-actions">${linkDoc(p.document_id)}${actions}${btn('Tutup','close-modal','ghost')}</div>`);
@@ -271,7 +285,7 @@ function correctPayment(p) {
   </form>`);
 }
 function finance() {const names=[['expenses','Biaya operasional'],['incomes','Pendapatan lain'],['losses','Kerugian']];return head('Keuangan','Catat biaya, pendapatan lain, dan kerugian.')+names.map(([key,title])=>`<section class="card"><div class="page-head"><h2>${title}</h2>${btn('Tambah','new-finance','secondary tiny',`data-kind="${key}"`)}</div>${table(['Tanggal','ID','Kategori','Deskripsi','Jumlah','Dibayar','Aksi'],(state.data[key]||[]).map(x=>tr([esc(x.happened_on),esc(x.code),esc(x.category),esc(x.description),fmt(x.amount),fmt(x.paid),x.remaining>0?btn(key==='incomes'?'Terima pembayaran':'Catat pembayaran','pay','secondary tiny',`data-type="${key==='expenses'?'expense':key==='incomes'?'income':'loss'}" data-id="${x.id}" data-label="${esc(x.code)}" data-remaining="${x.remaining}"`):badge('Lunas')])))}</section>`).join(''); }
-function reports() {const r=state.data.reports||{year:Number(today().slice(0,4)),months:[]},totals=r.months.reduce((a,x)=>{for(const k of ['totalRevenue','grossProfit','netProfit','cashIn','cashOut'])a[k]=sumMoney(a[k]||0,x[k]);return a;},{}),current=Number(today().slice(0,4)),years=r.years||[...new Set([current,r.year])].sort((a,b)=>b-a);return head('Laporan bulanan','Pendapatan dan laba menurut tanggal transaksi; kas menurut tanggal pembayaran.',`<label>Tahun <select id="report-year">${years.map(y=>`<option value="${y}" ${r.year===y?'selected':''}>${String(y).padStart(4,'0')}</option>`).join('')}</select></label>`)+`<div class="cards"><section class="card metric"><div class="metric-label">Total pendapatan</div><div class="metric-value">${fmt(totals.totalRevenue)}</div></section><section class="card metric"><div class="metric-label">Laba kotor</div><div class="metric-value">${fmt(totals.grossProfit)}</div></section><section class="card metric strong"><div class="metric-label">Laba bersih</div><div class="metric-value">${fmt(totals.netProfit)}</div></section><section class="card metric"><div class="metric-label">Kas masuk</div><div class="metric-value">${fmt(totals.cashIn)}</div></section></div><section class="card"><h2>Rekap per bulan</h2>${table(['Bulan','Pendapatan','Modal & biaya langsung','Laba kotor','Operasional','Kerugian','Laba bersih','Kas masuk','Kas keluar','Saldo kas','Nilai stok'],r.months.map(x=>tr([esc(x.month),fmt(x.totalRevenue),fmt(sumMoney(x.unitCost,x.serviceCost)),fmt(x.grossProfit),fmt(x.expense),fmt(x.loss),fmt(x.netProfit),fmt(x.cashIn),fmt(x.cashOut),fmt(x.closingCash),fmt(x.inventory)])))}</section>`; }
+function reports() {const r=state.data.reports||{year:Number(today().slice(0,4)),months:[]},totals=r.months.reduce((a,x)=>{for(const k of ['totalRevenue','grossProfit','netProfit','cashIn','cashOut'])a[k]=sumMoney(a[k]||0,x[k]);return a;},{}),current=Number(today().slice(0,4)),years=r.years||[...new Set([current,r.year])].sort((a,b)=>b-a);return head('Report','Pendapatan dan laba menurut tanggal transaksi; kas menurut tanggal pembayaran.',`<label>Tahun <select id="report-year">${years.map(y=>`<option value="${y}" ${r.year===y?'selected':''}>${String(y).padStart(4,'0')}</option>`).join('')}</select></label>`)+`<div class="cards"><section class="card metric"><div class="metric-label">Total pendapatan</div><div class="metric-value">${fmt(totals.totalRevenue)}</div></section><section class="card metric"><div class="metric-label">Laba kotor</div><div class="metric-value">${fmt(totals.grossProfit)}</div></section><section class="card metric strong"><div class="metric-label">Laba bersih</div><div class="metric-value">${fmt(totals.netProfit)}</div></section><section class="card metric"><div class="metric-label">Kas masuk</div><div class="metric-value">${fmt(totals.cashIn)}</div></section></div><section class="card"><h2>Rekap per bulan</h2>${table(['Bulan','Pendapatan','Modal & biaya langsung','Laba kotor','Operasional','Kerugian','Laba bersih','Kas masuk','Kas keluar','Saldo kas','Nilai stok'],r.months.map(x=>tr([esc(x.month),fmt(x.totalRevenue),fmt(sumMoney(x.unitCost,x.serviceCost)),fmt(x.grossProfit),fmt(x.expense),fmt(x.loss),fmt(x.netProfit),fmt(x.cashIn),fmt(x.cashOut),fmt(x.closingCash),fmt(x.inventory)])))}</section>`; }
 function settings() {
   if (state.me.role !== 'owner') return head('Pengaturan', 'Atur tampilan aplikasi Anda.') + themeSettings();
   const opening = state.data.opening || {};
@@ -286,13 +300,14 @@ function settings() {
 }
 function audit(){return head('Log perubahan','Perubahan data penting dan koreksi pembayaran.')+`<section class="card"><h2>Aktivitas terbaru</h2>${table(['Waktu','Petugas','Data','Aksi','Detail'],(state.data.audit||[]).map(x=>tr([esc(x.created_at.slice(0,19).replace('T',' ')),esc(x.actor_name),`${esc(x.entity)} · ${esc(x.entity_id.slice(0,8))}`,esc(x.action),esc(x.detail)])))}</section>`;}
 function staff() {return head('Staf','Akun dan akses aplikasi.',btn('Tambah staf','new-staff','primary'))+`<section class="card"><h2>Akun staf</h2>${table(['Nama','Username','Peran','Status','Aksi'],(state.data.users||[]).map(x=>tr([esc(x.name),esc(x.username),esc(x.role),badge(x.active?'Aktif':'Nonaktif'),x.active&&x.id!==state.me.id?`<div class="row-actions">${btn('Reset sandi','reset-password','secondary tiny',`data-id="${x.id}"`)}${btn('Nonaktifkan','deactivate','ghost tiny',`data-id="${x.id}"`)}</div>`:'—'])))}</section>`; }
-function render(){ if(!state.me){resetTables();app.innerHTML=authScreen(state.page==='setup');return;} const pages={dashboard,customers,units,sales,services,payments,finance,reports,settings,audit,staff};app.innerHTML=shell((pages[state.page]||dashboard)());enhanceTables(app,state.page); }
+const v2ui=typeof createV2UI==='function'?createV2UI({state,api,post,esc,fmt,field,select,btn,head,empty,table,tr,badge,modal,closeModal,linkDoc,today,render,loadPage,services,reports}):null;
+function render(){ if(!state.me){resetTables();app.innerHTML=authScreen(state.page==='setup');return;} const pages={dashboard,customers,units,sales,services,payments,finance,reports,settings,audit,staff};let content=state.loading||state.pageError?'':v2ui?.render(state.page);if(content===undefined)content=(pages[state.page]||dashboard)();if(['reports','finance','payments'].includes(state.page)&&state.me.role==='owner')content=(v2ui?.tabs([['Report','reports'],['Pencatatan keuangan','finance'],['Pembayaran','payments']])||'')+content;if(['settings','staff','audit'].includes(state.page)&&state.me.role==='owner')content=(v2ui?.tabs([['Toko & tampilan','settings'],['Staf dan akses','staff'],['Audit','audit']])||'')+content;if(state.page==='customers')content+=v2ui?.customerExtras()||'';if(state.page==='settings')content+=v2ui?.policyForm()||'';if(state.loading)content='<section class="card v2-loading" aria-busy="true" aria-label="Memuat data"><p>Memuat data…</p><div></div><div></div><div></div></section>';if(state.pageError)content='<section class="card"><h1>Data belum dapat dimuat</h1><p role="alert">'+esc(state.pageError)+'</p>'+btn('Coba lagi','retry-page','primary')+'</section>';app.innerHTML=shell(content);enhanceTables(app,state.page);v2ui?.restorePos(); }
 function modal(title, content) {
   const dialog = $('#modal');
   dialog.querySelector('.dialog-body').innerHTML = `
     <div class="modal-heading">
       <h2 id="modal-title">${esc(title)}</h2>
-      <button type="button" class="button ghost modal-close" data-action="close-modal" aria-label="Tutup dialog">×</button>
+      <button type="button" class="button ghost modal-close" data-action="close-modal" aria-label="Tutup dialog"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
     </div>${content}`;
   if (!dialog.open) dialog.showModal();
   dialog.querySelector('input:not([type="hidden"]),select,textarea')?.focus();
@@ -308,7 +323,7 @@ function showSearch() {
   if (!state.me || document.querySelector('dialog[open]')) return;
   dismissAccountMenu();
   openSearch({ post, navigate: async record => {
-    state.page = record.page; state.search = ''; state.customerId = record.scope === 'customers' ? record.id : null;
+    state.page = record.page; v2ui?.navigate(record); state.search = ''; state.customerId = record.scope === 'customers' ? record.id : null;
     await loadPage();
   } });
 }
@@ -335,7 +350,7 @@ function openForm(action,el){const customers=state.data.customers||[],customerOp
   if(action==='new-sale'){const units=state.data.units.filter(x=>!x.sale_id&&x.status==='Siap dijual');return modal('Catat penjualan',`<form class="grid-form" data-form="sale">${field('ID transaksi','code','text',{required:true,placeholder:'JUAL-001'})}${field('Tanggal jual','soldOn','date',{required:true,value:today()})}${select('Unit siap jual','unitId',units.map((unit,index)=>[unit.id,unitChoiceLabel(unit,index)]))}<div id="unit-choice-preview" class="unit-choice-preview wide" role="status">Pilih unit untuk melihat kode dan model lengkap.</div>${select('Pelanggan untuk DP','customerId',customerOptions,false)}${field('Nama pembeli jika langsung lunas','buyerName')}${field('Harga jual','price','currency',{required:true})}${field('Diskon','discount','currency',{value:0})}${field('Biaya penjualan','saleCost','currency',{value:0})}${field('Pembayaran awal','initialPayment','currency',{value:0})}${select('Metode pembayaran awal','method',['Cash','Transfer','QRIS'].map(x=>[x,x]),false)}<p class="hint wide">Pelanggan wajib dipilih jika belum lunas. Tambah pelanggan lewat menu Pelanggan terlebih dahulu.</p>${formActions('Simpan penjualan')}</form>`);}
   if(action==='new-service')return modal('Terima servis',`<form class="grid-form" data-form="service">${field('ID servis','code','text',{required:true,placeholder:'SRV-001'})}${field('Tanggal masuk','receivedOn','date',{required:true,value:today()})}${select('Pelanggan','customerId',customerOptions)}${select('Kategori','category',[['Laptop','Laptop'],['HP','HP']])}${field('Merek / model','model','text',{required:true})}${field('Keluhan','complaint','text',{required:true})}${field('Estimasi biaya untuk DP','estimateAmount','currency',{value:0})}${field('Kode sparepart','partCode')}${field('Modal per part','partUnitCost','currency',{value:0})}${field('Jumlah part','partQty','number',{value:0})}${field('Harga part ke pelanggan','partCharge','currency',{value:0})}${field('Biaya jasa ke pelanggan','serviceCharge','currency',{value:0})}${field('Biaya teknisi','technicianCost','currency',{value:0})}<p class="hint wide">Buat pelanggan terlebih dahulu melalui menu Pelanggan. Estimasi diperlukan sebelum menerima DP.</p>${formActions('Simpan servis')}</form>`);
   if(action==='edit-service'){const x=state.data.services.find(s=>s.id===el.dataset.id);return modal(`Ubah biaya ${x.code}`,`<form class="grid-form" data-form="edit-service"><input type="hidden" name="id" value="${x.id}">${field('Estimasi untuk DP','estimateAmount','currency',{value:x.estimate_amount})}${field('Kode sparepart','partCode','text',{value:x.part_code})}${field('Modal per part','partUnitCost','currency',{value:x.part_unit_cost})}${field('Jumlah part','partQty','number',{value:x.part_qty})}${field('Harga part ke pelanggan','partCharge','currency',{value:x.part_charge})}${field('Biaya jasa ke pelanggan','serviceCharge','currency',{value:x.service_charge})}${field('Biaya teknisi','technicianCost','currency',{value:x.technician_cost})}${field('Catatan','notes','text',{value:x.notes,wide:true})}${formActions('Simpan perubahan')}</form>`);}
-  if(action==='pay')return modal(`Pembayaran ${el.dataset.label}`,`<p class="muted">Sisa tagihan atau estimasi: <strong>${fmt(el.dataset.remaining)}</strong></p><form class="grid-form" data-form="payment"><input type="hidden" name="sourceType" value="${esc(el.dataset.type)}"><input type="hidden" name="sourceId" value="${esc(el.dataset.id)}">${field('Tanggal bayar','paidOn','date',{required:true,value:today()})}${field('Jumlah bayar','amount','currency',{required:true})}${select('Metode','method',['Cash','Transfer','QRIS'].map(x=>[x,x]))}${field('Referensi','reference')}${formActions('Catat pembayaran')}</form>`);
+  if(action==='pay')return modal(`Pembayaran ${el.dataset.label}`,`<p class="muted">Sisa tagihan atau estimasi: <strong>${fmt(el.dataset.remaining)}</strong></p><form class="grid-form" data-form="payment"><input type="hidden" name="requestKey" value="${crypto.randomUUID()}"><input type="hidden" name="sourceType" value="${esc(el.dataset.type)}"><input type="hidden" name="sourceId" value="${esc(el.dataset.id)}">${field('Tanggal bayar','paidOn','date',{required:true,value:today()})}${field('Jumlah bayar','amount','currency',{required:true})}${select('Metode','method',['Cash','Transfer','QRIS'].map(x=>[x,x]))}${field('Referensi','reference')}${formActions('Catat pembayaran')}</form>`);
   if(action==='service-status')return modal(`Status ${el.dataset.label}`,`<form class="grid-form" data-form="service-status"><input type="hidden" name="id" value="${esc(el.dataset.id)}">${select('Status baru','status',['Dalam pengerjaan','Menunggu sparepart','Selesai','Batal'].map(x=>[x,x]))}${field('Tanggal selesai','completedOn','date',{value:today()})}${formActions('Simpan status')}</form>`);
   if(action==='new-finance'){const key=el.dataset.kind,title={expenses:'Biaya operasional',incomes:'Pendapatan lain',losses:'Kerugian'}[key];return modal(`Tambah ${title}`,`<form class="grid-form" data-form="finance"><input type="hidden" name="kind" value="${key}">${field('ID transaksi','code','text',{required:true})}${field('Tanggal','happenedOn','date',{required:true,value:today()})}${field('Kategori','category','text',{required:true})}${field('Deskripsi','description','text',{required:true})}${field('Jumlah','amount','currency',{required:true})}${formActions('Simpan')}</form>`);}
   if(action==='new-staff')return modal('Tambah akun staf',`<form class="grid-form" data-form="staff">${field('Nama','name','text',{required:true})}${field('Username','username','text',{required:true})}${select('Peran','role',[['cashier','Kasir'],['service','Staf servis'],['owner','Pemilik']])}${field('Kata sandi sementara','password','password',{required:true})}${formActions('Tambah staf')}</form>`);
@@ -346,7 +361,7 @@ function openForm(action,el){const customers=state.data.customers||[],customerOp
   }
   if(action==='reverse-payment')return modal(`Batalkan ${el.dataset.label}`,`<p class="muted">Pembayaran asli tetap tersimpan. Sistem akan membuat transaksi dan dokumen pembatalan.</p><form class="grid-form" data-form="reverse-payment"><input type="hidden" name="id" value="${esc(el.dataset.id)}">${field('Tanggal pembatalan','paidOn','date',{required:true,value:today()})}${field('Alasan koreksi','reason','text',{required:true,wide:true})}${formActions('Buat pembatalan')}</form>`);
 }
-document.addEventListener('click',async e=>{const page=e.target.closest('[data-page]');if(page){dismissAccountMenu();state.page=page.dataset.page;state.customerId=null;state.search='';await loadPage();return;}const el=e.target.closest('[data-action]');if(!el)return;const action=el.dataset.action;try{if(action==='global-search'){showSearch();return;}if(action==='toggle-sidebar'){toggleSidebar(e.detail!==0);return;}if(action==='logout'){dismissAccountMenu();await post('/logout',{});state.me=null;state.page='login';state.notice='';render();return;}if(action==='close-modal'){closeModal();return;}if(action==='back-customers'){state.customerId=null;render();return;}if(action==='customer-detail'){state.customerId=el.dataset.id;render();return;}if(action==='deactivate'){if(!confirm('Nonaktifkan akun staf ini?'))return;await post(`/users/${el.dataset.id}/deactivate`,{});await loadPage();return;}openForm(action,el);}catch(err){notice(err.message,true);}});
+document.addEventListener('click',async e=>{const page=e.target.closest('[data-page]');if(page){v2ui?.capturePos();dismissAccountMenu();state.page=page.dataset.page;state.customerId=null;state.search='';await loadPage();return;}const el=e.target.closest('[data-action]');if(!el)return;const action=el.dataset.action;try{if(action==='retry-page'){await loadPage();return;}if(action==='global-search'){showSearch();return;}if(action==='toggle-sidebar'){toggleSidebar(e.detail!==0);return;}if(action==='logout'){v2ui?.reset();dismissAccountMenu();await post('/logout',{});state.me=null;state.page='login';state.notice='';render();return;}if(action==='close-modal'){closeModal();return;}if(action==='back-customers'){state.customerId=null;render();return;}if(action==='customer-detail'){state.customerId=el.dataset.id;render();return;}if(action==='deactivate'){if(!confirm('Nonaktifkan akun staf ini?'))return;await post(`/users/${el.dataset.id}/deactivate`,{});await loadPage();return;}openForm(action,el);}catch(err){notice(err.message,true);}});
 document.addEventListener('change',async e=>{if(e.target.id==='report-year'){state.reportYear=Number(e.target.value);await loadPage();return;}const el=e.target.closest('[data-unit-status]');if(!el)return;try{await post(`/units/${el.dataset.unitStatus}/status`,{status:el.value},'PATCH');await loadPage();}catch(err){notice(err.message,true);}});
 document.addEventListener('input',e=>{if(e.target.id==='search'){state.search=e.target.value;const list=$('#customer-list');list.innerHTML=customerList();enhanceTables(list,state.page);}});
 function currencyFocus(e) {
@@ -368,13 +383,13 @@ form.setAttribute('aria-busy', 'true');
 submit.disabled = true;
 submit.textContent = kind === 'login' ? 'Masuk…' : 'Menyimpan…';
 form.closest('dialog')?.querySelectorAll('[data-action="close-modal"]').forEach(button => { button.disabled = true; });
-try{if(kind==='setup'){await post('/setup',{storeName:val(f,'storeName'),name:val(f,'name'),username:val(f,'username'),password:val(f,'password'),openingDate:val(f,'openingDate'),openingAmount:money(f,'openingAmount')});state.page='login';state.notice='Toko siap. Silakan masuk.';render();return;}if(kind==='login'){await post('/login',{username:val(f,'username'),password:val(f,'password')});state.me=await api('/me');state.page=state.me.role==='owner'?'dashboard':state.me.role==='service'?'services':'sales';await loadPage();return;}
+try{if(kind==='setup'){await post('/setup',{storeName:val(f,'storeName'),name:val(f,'name'),username:val(f,'username'),password:val(f,'password'),openingDate:val(f,'openingDate'),openingAmount:money(f,'openingAmount')});state.page='login';state.notice='Toko siap. Silakan masuk.';render();return;}if(kind==='login'){await post('/login',{username:val(f,'username'),password:val(f,'password')});state.me=await api('/me');state.page=state.me.role==='owner'?'dashboard':state.me.role==='service'?'orders':'sales';await loadPage();return;}
   if(kind==='customer')await post('/customers',{name:val(f,'name'),phone:val(f,'phone'),notes:val(f,'notes')});
   if(kind==='unit')await post('/units',{code:val(f,'code'),category:val(f,'category'),model:val(f,'model'),intakeDate:val(f,'intakeDate'),supplier:val(f,'supplier'),purchaseAmount:money(f,'purchaseAmount'),repairAmount:money(f,'repairAmount'),extraAmount:money(f,'extraAmount'),targetAmount:money(f,'targetAmount'),status:val(f,'status'),specs:val(f,'specs')});
   if(kind==='sale')await post('/sales',{code:val(f,'code'),soldOn:val(f,'soldOn'),unitId:val(f,'unitId'),customerId:val(f,'customerId'),buyerName:val(f,'buyerName'),price:money(f,'price'),discount:money(f,'discount'),saleCost:money(f,'saleCost'),initialPayment:money(f,'initialPayment'),method:val(f,'method')});
   if(kind==='service')await post('/services',{code:val(f,'code'),receivedOn:val(f,'receivedOn'),customerId:val(f,'customerId'),category:val(f,'category'),model:val(f,'model'),complaint:val(f,'complaint'),estimateAmount:money(f,'estimateAmount'),partCode:val(f,'partCode'),partUnitCost:money(f,'partUnitCost'),partQty:Number(val(f,'partQty') || 0),partCharge:money(f,'partCharge'),serviceCharge:money(f,'serviceCharge'),technicianCost:money(f,'technicianCost')});
   if(kind==='edit-service')await post(`/services/${val(f,'id')}`,{estimateAmount:money(f,'estimateAmount'),partCode:val(f,'partCode'),partUnitCost:money(f,'partUnitCost'),partQty:Number(val(f,'partQty') || 0),partCharge:money(f,'partCharge'),serviceCharge:money(f,'serviceCharge'),technicianCost:money(f,'technicianCost'),notes:val(f,'notes')},'PATCH');
-  if(kind==='payment')await post('/payments',{sourceType:val(f,'sourceType'),sourceId:val(f,'sourceId'),paidOn:val(f,'paidOn'),amount:money(f,'amount'),method:val(f,'method'),reference:val(f,'reference')});
+  if(kind==='payment')await post('/payments',{requestKey:val(f,'requestKey'),sourceType:val(f,'sourceType'),sourceId:val(f,'sourceId'),paidOn:val(f,'paidOn'),amount:money(f,'amount'),method:val(f,'method'),reference:val(f,'reference')});
   if(kind==='service-status')await post(`/services/${val(f,'id')}/status`,{status:val(f,'status'),completedOn:val(f,'completedOn')},'PATCH');
   if(kind==='finance')await post('/'+val(f,'kind'),{code:val(f,'code'),happenedOn:val(f,'happenedOn'),category:val(f,'category'),description:val(f,'description'),amount:money(f,'amount')});
   if(kind==='staff')await post('/users',{name:val(f,'name'),username:val(f,'username'),role:val(f,'role'),password:val(f,'password')});

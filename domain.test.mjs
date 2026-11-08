@@ -5,8 +5,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { sumMoney, subtractMoney, multiplyMoney, formatMoney, avatarInitial, fieldLimits, validateTextFields } from './public/domain.js';
-import { compareValues } from './public/data-table.js';
+import { sumMoney, subtractMoney, multiplyMoney, formatMoney, avatarInitial, fieldLimits, validateTextFields } from './shared/domain.mjs';
+import { compareValues } from './qa/legacy-frontend/data-table.js';
 
 assert.equal(sumMoney(Number.MAX_SAFE_INTEGER, 1000000), '9007199255740991');
 assert.equal(subtractMoney('9007199255740991', 1), '9007199255740990');
@@ -20,7 +20,7 @@ assert.throws(() => validateTextFields({ name: 'N'.repeat(fieldLimits.name + 1) 
 validateTextFields({ notes: 'N'.repeat(4001) }, { notes: 'N'.repeat(4001) });
 
 const directory = mkdtempSync(join(tmpdir(), 'techkasir-domain-'));
-const server = spawn(process.execPath, ['server.mjs'], {
+const server = spawn(process.execPath, ['scripts/api-test-server.mjs'], {
   cwd: import.meta.dirname, windowsHide: true,
   env: { ...process.env, PORT: '0', HOST: '127.0.0.1', TECHKASIR_DATA_DIR: directory },
   stdio: ['ignore', 'pipe', 'pipe'],

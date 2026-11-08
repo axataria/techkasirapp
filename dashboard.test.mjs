@@ -1,9 +1,9 @@
-import * as domain from './public/domain.js';
+import * as domain from './shared/domain.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const source = readFileSync(new URL('./public/app.js', import.meta.url), 'utf8')
+const source = readFileSync(new URL('./qa/legacy-frontend/app.js', import.meta.url), 'utf8')
   .replace(/^import .*;\r?\n/gm, '')
   .replace(/boot\(\)\.catch\([\s\S]*$/, '');
 const context = vm.createContext({

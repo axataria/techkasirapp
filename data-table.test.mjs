@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { compareValues, tablePage } from './public/data-table.js';
+import { compareValues, tablePage } from './qa/legacy-frontend/data-table.js';
 
 const rows = Array.from({ length: 23 }, (_, index) => ({
   index, values: [`Unit ${index + 1}`, `Rp ${new Intl.NumberFormat('id').format((index + 1) * 100000)}`],

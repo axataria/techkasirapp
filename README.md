@@ -1,24 +1,52 @@
-# TechKasir local web app
+# TechKasir V3 · 3.0.0
 
-A working local build for a laptop/phone store, based on [PRD.md](PRD.md), [WORKFLOWS.md](WORKFLOWS.md), [ERD.md](ERD.md), and [DESIGN_REVIEW.md](DESIGN_REVIEW.md).
+Satu proyek dan satu proses aplikasi. `npm.cmd run dev` menjalankan frontend Next.js, API toko, dan dokumen cetak bersama di **http://127.0.0.1:3100**. `server.mjs` adalah satu-satunya entry point aplikasi; backend berada di `src/server`. Gunakan `npm.cmd run verify` untuk pemeriksaan lengkap dan `npm.cmd run preview` hanya untuk data uji terpisah.
+
+Versi aktif: **V3 (3.0.0)**. Panduan operasi, perbaikan fungsional, dan hasil verifikasi tersedia di [V3.md](V3.md).
+
+A working local build for a laptop/phone store. V2 follows [PRD-V2.md](PRD-V2.md); see [V2.md](V2.md) for implemented modules, migration, workflows, verification, and MVP limits. The original [PRD.md](PRD.md), [WORKFLOWS.md](WORKFLOWS.md), [ERD.md](ERD.md), and [DESIGN_REVIEW.md](DESIGN_REVIEW.md) remain historical references.
+
+V2 adds the 12-item sidebar, a POS with a right cart panel, split order/payment history, catalogue and individual units, suppliers/receiving, QC, warranty claims, customer/supplier returns, and date-range reporting with CSV export. Authentication and the existing design system are retained. Finance/payments live under Report; staff/audit live under Settings; service jobs live in Order history.
+
+Stop the previous server before starting v2. The first v2 startup creates a consistent pre-migration SQLite backup beside the store database. Existing accounts, sessions, records, and document IDs are preserved.
 
 ## Run
 
-Requires Node.js 24 or newer. No package installation is needed.
+Requires Node.js 24 or newer. The frontend uses Next.js App Router, React, TypeScript, Tailwind CSS v4, and official shadcn/ui source components. Node.js and SQLite continue to handle the existing store API.
 
 ```powershell
-node server.mjs
+npm.cmd install
+npm.cmd run dev
 ```
 
-Open `http://127.0.0.1:3000`. On the first visit, create the owner account and enter the opening cash balance. The app stores data in `data/store.db`. The server binds to localhost by default.
+Open `http://127.0.0.1:3100`. On the first visit, create the owner account and enter the opening cash balance. The app stores data in `data/store.db`. The server binds to localhost by default.
 
 To run the integration checks:
 
 ```powershell
-node test.mjs
+node verify.mjs
 ```
 
 The checks use a separate temporary database. They do not alter the store's data.
+
+## Frontend architecture and styling
+
+The active frontend lives in `src/app` and `src/components`. It uses real shadcn/ui React components installed through the CLI, with local Geist fonts, Phosphor icons, light/dark modes, saved palettes, and frosted glass surfaces. Layout and styling use Tailwind utilities. `src/app/globals.css` contains the Tailwind import and shared theme/material tokens.
+
+`server.mjs` serves Next.js and routes `/api/*` and `/document` to the existing store handlers on the same origin, preserving session cookies and cross-origin write protection. `node server.mjs` starts the complete application. Backend modules live in `src/server` and have no standalone application entry point.
+
+The previous frontend is archived under `qa/legacy-frontend` solely for historical regression tests. It is not served or loaded by Next.js. There is no active static HTML entry point or old stylesheet build.
+
+For a production build and local start:
+
+```powershell
+npm.cmd run build
+npm.cmd start
+```
+
+Use `npm.cmd run typecheck` for TypeScript checks and `npm.cmd run test:next` after building for Next.js route, asset, session, API, and origin checks. `npm.cmd test` runs the existing API/domain/migration checks plus historical frontend fixtures. The historical fixture checks do not represent coverage of the new React components.
+
+Run `npm.cmd run preview` after building for an isolated seeded preview on port 3101. Its separate temporary database does not modify `data/store.db`. Preview login: `preview` / `preview-v3-only-2026`. Those credentials exist only in that preview store.
 
 ## Available now
 
@@ -33,11 +61,11 @@ The checks use a separate temporary database. They do not alter the store's data
 
 ## Data tables
 
-The Table05 reference is integrated with live app records using the existing native JavaScript frontend. Its shared component is `public/data-table.js`, its styles are in `public/style.css`, and `public/app.js` initializes it after rendering. This app does not use React, TypeScript, Tailwind, or shadcn; the native integration needs no extra packages or build step. A `/components/ui` directory is appropriate for reusable React/shadcn components in a React project; the served native modules here live directly under `public`.
+The React table component uses shadcn/ui Table, Input, Button, and Select components. Business screens share the searchable and paginated grid in `src/components/data-grid.tsx`.
 
-List tables support local search, sorting by column, 5/10/20 rows per page, numbered pagination, and row selection with a selected count. Select all applies to the current page. Currency sorts by rupiah value. The three-dot row menu contains only the actions the current account can already perform, including invoices and payments. Selection does not modify records. Table controls retain their state while navigating in a session and reset on logout. Dashboard summary tables stay compact.
+List tables support local search, sorting by column, 5/10/20 rows per page, numbered pagination, and row selection with a selected count. Select all applies to the current page. Currency sorts by rupiah value. The three-dot row menu contains only the actions the current account can already perform, including invoices and payments. Selection does not modify records. Table controls use React state scoped to each screen. Dashboard summary tables stay compact.
 
-Run `node data-table.test.mjs` for filtering, sorting, and pagination checks.
+Run `node data-table.test.mjs` for historical table logic checks. The Next.js smoke test verifies the current application entry points; browser review is recorded in `NEXT-FRONTEND-PLAN.md`.
 
 ## Dummy data and invoice checks
 
@@ -59,8 +87,12 @@ Run `node search.test.mjs` for keyword matching, permission, pagination, and loc
 
 ## Current limits
 
-This is a **local development build**, not a production deployment. It is bound to one computer and uses SQLite. The original Excel import, customer returns/refunds, spare-part stock, customer follow-up notes, automated backups, email invitations, automated password recovery, and a downloadable PDF generator are not implemented yet. Payment documents can be printed or saved as PDF from the browser. Reports have a year filter; a custom date-range profit and loss report is still to be built.
+This is a **local development build**, not a production deployment. It is bound to one computer and uses SQLite. The original Excel import, spare-part stock, customer follow-up notes, scheduled backups, email invitations, automated password recovery, and a downloadable PDF generator are not implemented yet. V2 supports full-unit customer returns/refunds and date-range profit and loss reporting; partial returns and special refund corrections remain outside the MVP. Payment documents can be printed or saved as PDF from the browser. See [V2.md](V2.md) for detailed limits.
 
 The service accounting policy follows the PRD's proposed default: the service charge is customer revenue and technician cost is separate. Confirm this with the store owner before using profit figures operationally.
 
 To make a consistent manual backup while the app is local, stop the server, then copy the `data` folder to another location. Restore by stopping the server and replacing that folder with the backup. Production use needs scheduled backups, HTTPS, and a hosting/database decision.
+
+## V3 acceptance
+
+Run `npm.cmd run verify` for TypeScript, production build, existing regression checks, and the extended Next.js business workflow integration. See [V3.md](V3.md) for the active release.
