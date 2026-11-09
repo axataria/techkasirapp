@@ -21,6 +21,8 @@ try {
   }
   const base = output.match(/running at (http:\/\/[^\s]+)/)?.[1];
   assert.ok(base, `Next.js did not start: ${errors}`);
+  const hostingOrigin = process.env.TECHKASIR_FIREBASE_ORIGIN;
+  const origin = hostingOrigin || base;
   const request = async (path, body, headers = {}) => {
     const response = await fetch(base + path, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', Cookie: cookie, ...headers }, body: body ? JSON.stringify(body) : undefined });
     if (response.headers.get('set-cookie')) cookie = response.headers.get('set-cookie').split(';')[0];
@@ -41,16 +43,18 @@ try {
   for (const asset of new Set(assets)) assert.equal((await request(asset)).status, 200, asset);
   assert.equal((await (await request('/api/bootstrap')).json()).needsSetup, true);
   assert.equal((await request('/api/setup', { storeName: 'Next test store', name: 'Next owner', username: 'next-owner', password: 'next-integration-only-2026', openingDate: '2026-11-01', openingAmount: 0 })).status, 201);
-  assert.equal((await request('/api/login', { username: 'next-owner', password: 'next-integration-only-2026' })).status, 200);
-  assert.ok(cookie.startsWith('tk_session='));
+  const login = await request('/api/login', { username: 'next-owner', password: 'next-integration-only-2026' }, { Origin: origin });
+  assert.equal(login.status, 200);
+  assert.ok(cookie.startsWith(hostingOrigin ? '__session=' : 'tk_session='));
+  if (hostingOrigin) assert.match(login.headers.get('set-cookie'), /; Secure$/);
   assert.equal((await (await request('/api/me')).json()).role, 'owner');
-  const customerResponse = await request('/api/customers', { name: 'Next customer', phone: '0800000000' }, { Origin: base });
+  const customerResponse = await request('/api/customers', { name: 'Next customer', phone: '0800000000' }, { Origin: origin });
   assert.equal(customerResponse.status, 201);
   const customer = await customerResponse.json();
   assert.equal((await request('/api/customers', { name: 'Rejected cross origin' }, { Origin: 'https://example.invalid' })).status, 403);
   assert.equal((await request('/api/v2/summary')).status, 200);
   const write = async (path, body, expected = 201, method = 'POST') => {
-    const response = await fetch(base + '/api' + path, { method, headers: { 'Content-Type': 'application/json', Cookie: cookie, Origin: base }, body: JSON.stringify(body) });
+    const response = await fetch(base + '/api' + path, { method, headers: { 'Content-Type': 'application/json', Cookie: cookie, Origin: origin }, body: JSON.stringify(body) });
     const value = await response.json();
     assert.equal(response.status, expected, `${path}: ${JSON.stringify(value)}`);
     return value;

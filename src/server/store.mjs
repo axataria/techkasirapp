@@ -11,6 +11,13 @@ import { sumMoney, subtractMoney, multiplyMoney, publicInteger, validateTextFiel
 
 const root = new URL('../../', import.meta.url).pathname.replace(/^\/(\w:)/, '$1');
 const dataDir = process.env.TECHKASIR_DATA_DIR || join(root, 'data');
+const hostingOrigin = process.env.TECHKASIR_FIREBASE_ORIGIN
+  ? new URL(process.env.TECHKASIR_FIREBASE_ORIGIN)
+  : null;
+if (hostingOrigin && (hostingOrigin.protocol !== 'https:' || hostingOrigin.href !== hostingOrigin.origin + '/')) {
+  throw new Error('TECHKASIR_FIREBASE_ORIGIN must be an HTTPS origin.');
+}
+const sessionCookieName = hostingOrigin ? '__session' : 'tk_session';
 mkdirSync(dataDir, { recursive: true });
 const db = new DatabaseSync(join(dataDir, 'store.db'));
 db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;');
@@ -73,7 +80,7 @@ function nextNumber(storeId, kind) { run('INSERT INTO counters(store_id,kind,val
 function audit(user, entity, entityId, action, detail = '') { run('INSERT INTO audit VALUES(?,?,?,?,?,?,?,?)', uid(), user.store_id, user.id, entity, entityId, action, detail, now()); }
 function json(res, status, body, extra = {}) { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...extra }); res.end(JSON.stringify(body)); }
 function cookie(req, name) { return (req.headers.cookie || '').split(';').map(x => x.trim()).find(x => x.startsWith(name + '='))?.slice(name.length + 1); }
-function userFor(req) { const token = cookie(req, 'tk_session'); if (!token) return null; return one('SELECT u.id,u.store_id,u.username,u.name,u.role,u.active,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1', hash(token), now()) || null; }
+function userFor(req) { const token = cookie(req, sessionCookieName); if (!token) return null; return one('SELECT u.id,u.store_id,u.username,u.name,u.role,u.active,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1', hash(token), now()) || null; }
 function needUser(req) { const u = userFor(req); if (!u) throw bad('Silakan masuk terlebih dahulu.', 401); return u; }
 function needRole(u, roles) { if (!roles.includes(u.role)) throw bad('Akses tidak diizinkan.', 403); }
 function bodyOf(req) {
@@ -103,7 +110,10 @@ function bodyOf(req) {
     });
   });
 }
-function sessionCookie(req, token) { return `tk_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800${req.socket.encrypted ? '; Secure' : ''}`; }
+function sessionCookie(req, token, maxAge = 604800) {
+  const secure = hostingOrigin || req.socket.encrypted;
+  return `${sessionCookieName}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
+}
 function invoice(storeId, sourceType, sourceId, amount, snapshot) { const id = uid(); run('INSERT INTO invoices VALUES(?,?,?,?,?,?,?,?)', id, storeId, nextNumber(storeId, 'INV'), sourceType, sourceId, storedMoney(amount), JSON.stringify(snapshot), now()); return id; }
 function paid(sourceType, sourceId) { const direction=['sale','service','income','supplier_refund'].includes(sourceType)?'IN':'OUT'; return (one('SELECT COALESCE(SUM(CASE WHEN direction=? THEN amount ELSE -amount END),0) AS total FROM payments WHERE source_type=? AND source_id=?',direction,sourceType,sourceId)?.total || 0); }
 function paymentSource(type, id, storeId) {
@@ -276,7 +286,7 @@ async function api(req,res,url) {
     return json(res, 201, { ok: true, username, recoveryCode });
   }
   if (method==='POST'&&path==='/api/login') { const b=await bodyOf(req), username=String(b.username||'').trim().toLowerCase(), key=`${req.socket.remoteAddress}:${username}`, previous=loginFailures.get(key), fail=previous&&Date.now()-previous.since<15*60_000?previous:null; if(fail&&fail.count>=5) throw bad('Terlalu banyak percobaan. Coba lagi nanti.',429); const u=one('SELECT * FROM users WHERE username=? AND active=1',username); if(!u||!verifyPassword(String(b.password||''),u.password_hash)) { loginFailures.set(key,{count:(fail?.count||0)+1,since:fail?.since||Date.now()}); throw bad('Username atau kata sandi salah.',401); } loginFailures.delete(key); const token=randomBytes(32).toString('hex'); run('INSERT INTO sessions VALUES(?,?,?,?)',hash(token),u.id,new Date(Date.now()+604800000).toISOString(),now()); return json(res,200,{ok:true},{'Set-Cookie':sessionCookie(req,token)}); }
-  if (method==='POST'&&path==='/api/logout') { const token=cookie(req,'tk_session'); if(token) run('DELETE FROM sessions WHERE token_hash=?',hash(token)); return json(res,200,{ok:true},{'Set-Cookie':'tk_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'}); }
+  if (method==='POST'&&path==='/api/logout') { const token=cookie(req,sessionCookieName); if(token) run('DELETE FROM sessions WHERE token_hash=?',hash(token)); return json(res,200,{ok:true},{'Set-Cookie':sessionCookie(req,'',0)}); }
   const u=needUser(req);
   if(await v2.handle(req,res,url,u))return;
   if(method==='POST'&&path==='/api/search') {
@@ -395,7 +405,7 @@ async function api(req,res,url) {
   throw bad('Rute tidak ditemukan.',404);
 }
 
-export async function handleStoreRequest(req,res) { try { const host=req.headers.host||'localhost'; const url=new URL(req.url,`http://${host}`); if(!['GET','HEAD'].includes(req.method)) { const origin=req.headers.origin; if(origin&&new URL(origin).host!==host) throw bad('Permintaan lintas situs ditolak.',403); }
+export async function handleStoreRequest(req,res) { try { const host=req.headers.host||'localhost'; const url=new URL(req.url,`http://${host}`); if(!['GET','HEAD'].includes(req.method)) { const origin=req.headers.origin; if(origin && (hostingOrigin ? origin !== hostingOrigin.origin : new URL(origin).host !== host)) throw bad('Permintaan lintas situs ditolak.',403); }
     if(url.pathname.startsWith('/api/')) return await api(req,res,url);
     if(url.pathname==='/document') { const u=needUser(req), content=documentHtml(u,url.searchParams.get('type'),url.searchParams.get('id')); res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}); return res.end(content); }
     return json(res,404,{error:'Buka aplikasi melalui server Next.js.'});
