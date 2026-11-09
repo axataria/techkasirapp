@@ -21,6 +21,8 @@ npm.cmd run dev
 
 Open `http://127.0.0.1:3100`. On the first visit, create the owner account and enter the opening cash balance. The app stores data in `data/store.db`. The server binds to localhost by default.
 
+Untuk akun pemilik baru, pilih **Buat toko baru** di halaman login. Toko baru dimulai dengan saldo Rp 0 dan data operasional kosong. Akun staf yang dibuat lewat **Pengaturan → Staf dan akses** memakai data toko tempatnya ditambahkan. Saat pertama kali memuat skema pemisahan kode per toko, server membuat cadangan `data/before-store-isolation-*.db` jika sudah ada toko.
+
 To run the integration checks:
 
 ```powershell
@@ -28,6 +30,24 @@ node verify.mjs
 ```
 
 The checks use a separate temporary database. They do not alter the store's data.
+
+## Kode pemulihan akun
+
+Saat toko dibuat, TechKasir menampilkan **kode pemulihan simpanan** satu kali. Simpan kode di tempat aman. Pemilik yang sudah memiliki akun dapat membuat atau mengganti kode dari **Pengaturan → Profil akun** dengan kata sandi saat ini. Di halaman **Lupa kata sandi?**, masukkan kode simpanan dan kata sandi baru. Reset mengakhiri sesi lama dan menampilkan kode pengganti. Jalur ini dapat digunakan tanpa layanan email.
+
+## Email pemulihan opsional
+
+Atur variabel lingkungan berikut pada proses server untuk mengaktifkan kode pemulihan melalui Resend.
+
+| Variabel | Nilai |
+| --- | --- |
+| `RESEND_API_KEY` | Kunci API Resend dengan izin pengiriman. |
+| `TECHKASIR_RECOVERY_FROM` | Alamat pengirim dari domain yang sudah diverifikasi di Resend. |
+| `TECHKASIR_RECOVERY_SECRET` | Rahasia acak khusus pemulihan, minimal 32 karakter. Buat dengan `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`. |
+
+Simpan nilai di lingkungan server atau di `.env` yang diabaikan Git. Jika menggunakan `.env`, jalankan `node --env-file=.env server.mjs --dev` untuk pengembangan, atau `node --env-file=.env server.mjs` setelah build. Mulai ulang server setelah mengubah konfigurasi. [Dokumentasi pengiriman Resend](https://resend.com/docs/api-reference/emails/send-email)
+
+Setelah masuk, buka **Pengaturan → Profil akun** untuk mengubah nama atau username dengan konfirmasi kata sandi saat ini. Di bagian **Email pemulihan**, masukkan Gmail atau email lain yang dapat Anda akses dan verifikasi dengan kode yang dikirim. Dari halaman login, **Lupa kata sandi** mengirim kode ke email yang sudah diverifikasi. Kode berlaku 10 menit, dapat digunakan sekali, dan dikunci setelah lima tebakan salah. Pemulihan menampilkan username setelah kode berhasil dipakai dan mengakhiri sesi lama.
 
 ## Frontend architecture and styling
 

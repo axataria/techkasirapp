@@ -1,5 +1,7 @@
 import { createV2 } from './operations.mjs';
 import { searchRecords } from './search.mjs';
+import { createRecovery } from './recovery.mjs';
+import { scopeStoreIdentifiers } from './store-scoping.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { randomBytes, randomUUID, scryptSync, createHash, timingSafeEqual } from 'node:crypto';
 import { readFileSync, mkdirSync } from 'node:fs';
@@ -242,11 +244,37 @@ function documentHtml(u, type, id) {
 }
 
 const v2=createV2({db,one,all,run,tx,uid,now,date,money,required,bad,needRole,audit,nextNumber,invoice,postPayment,paid,json,bodyOf,sumMoney,subtractMoney,multiplyMoney,storedMoney,validateTextFields,hash,backupPath:join(dataDir,'before-v2-'+Date.now()+'.db')});
+scopeStoreIdentifiers({ db, one, all, tx, backupPath: join(dataDir, `before-store-isolation-${uid()}.db`) });
+const recovery = createRecovery({ db, one, run, tx, bad, bodyOf, json, needUser, passwordHash, verifyPassword, audit,
+  clearLoginFailures: (req, username) => loginFailures.delete(`${req.socket.remoteAddress}:${username}`),
+});
 
 async function api(req,res,url) {
   const method=req.method, path=url.pathname;
+  if (await recovery.handle(req, res, path)) return;
   if (method==='GET'&&path==='/api/bootstrap') return json(res,200,{needsSetup:!one('SELECT id FROM users LIMIT 1')});
-  if (method==='POST'&&path==='/api/setup') { if(one('SELECT id FROM users LIMIT 1')) throw bad('Toko sudah diatur.',403); const b=await bodyOf(req); const name=required(b.storeName,'Nama toko'), username=required(b.username,'Username').toLowerCase(), pass=required(b.password,'Kata sandi'); if(pass.length<10) throw bad('Kata sandi minimal 10 karakter.'); tx(()=>{ const store=uid(), user=uid(); run('INSERT INTO stores VALUES(?,?,?)',store,name,now()); run('INSERT INTO users VALUES(?,?,?,?,?,?,?,?)',user,store,username,required(b.name,'Nama pemilik'),'owner',passwordHash(pass),1,now()); run('INSERT INTO opening_balances VALUES(?,?,?,?,?)',uid(),store,date(b.openingDate||new Date().toISOString().slice(0,10)),money(b.openingAmount||0),now()); }); return json(res,201,{ok:true}); }
+  if (method === 'POST' && (path === '/api/setup' || path === '/api/register')) {
+    const firstSetup = path === '/api/setup';
+    const body = await bodyOf(req);
+    const storeName = required(body.storeName, 'Nama toko');
+    const name = required(body.name, 'Nama pemilik');
+    const username = required(body.username, 'Username').toLowerCase();
+    const password = required(body.password, 'Kata sandi');
+    if (password.length < 10) throw bad('Kata sandi minimal 10 karakter.');
+    const openingDate = date(firstSetup && body.openingDate || new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()));
+    const openingAmount = firstSetup ? money(body.openingAmount || 0) : 0;
+    const recoveryCode = tx(() => {
+      if (firstSetup && one('SELECT id FROM users LIMIT 1')) throw bad('Toko sudah diatur.', 403);
+      if (one('SELECT id FROM users WHERE username=?', username)) throw bad('Username sudah digunakan.', 409);
+      const storeId = uid();
+      const userId = uid();
+      run('INSERT INTO stores VALUES(?,?,?)', storeId, storeName, now());
+      run('INSERT INTO users VALUES(?,?,?,?,?,?,?,?)', userId, storeId, username, name, 'owner', passwordHash(password), 1, now());
+      run('INSERT INTO opening_balances VALUES(?,?,?,?,?)', uid(), storeId, openingDate, openingAmount, now());
+      return recovery.issueSavedCode(userId);
+    });
+    return json(res, 201, { ok: true, username, recoveryCode });
+  }
   if (method==='POST'&&path==='/api/login') { const b=await bodyOf(req), username=String(b.username||'').trim().toLowerCase(), key=`${req.socket.remoteAddress}:${username}`, previous=loginFailures.get(key), fail=previous&&Date.now()-previous.since<15*60_000?previous:null; if(fail&&fail.count>=5) throw bad('Terlalu banyak percobaan. Coba lagi nanti.',429); const u=one('SELECT * FROM users WHERE username=? AND active=1',username); if(!u||!verifyPassword(String(b.password||''),u.password_hash)) { loginFailures.set(key,{count:(fail?.count||0)+1,since:fail?.since||Date.now()}); throw bad('Username atau kata sandi salah.',401); } loginFailures.delete(key); const token=randomBytes(32).toString('hex'); run('INSERT INTO sessions VALUES(?,?,?,?)',hash(token),u.id,new Date(Date.now()+604800000).toISOString(),now()); return json(res,200,{ok:true},{'Set-Cookie':sessionCookie(req,token)}); }
   if (method==='POST'&&path==='/api/logout') { const token=cookie(req,'tk_session'); if(token) run('DELETE FROM sessions WHERE token_hash=?',hash(token)); return json(res,200,{ok:true},{'Set-Cookie':'tk_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'}); }
   const u=needUser(req);
@@ -265,7 +293,33 @@ async function api(req,res,url) {
     });
     return json(res,200,result);
   }
-  if(method==='GET'&&path==='/api/me') return json(res,200,{id:u.id,name:u.name,role:u.role,store:one('SELECT name FROM stores WHERE id=?',u.store_id).name});
+  if (path === '/api/me' && (method === 'GET' || method === 'PATCH')) {
+    let profile = u;
+    if (method === 'PATCH') {
+      const body = await bodyOf(req);
+      const session = needUser(req);
+      const user = one('SELECT * FROM users WHERE id=? AND active=1', session.id);
+      const name = required(body.name, 'Nama lengkap');
+      const username = required(body.username, 'Username').toLowerCase();
+      const key = `profile:${user.id}`;
+      const previous = loginFailures.get(key);
+      const failures = previous && Date.now() - previous.since < 15 * 60_000 ? previous : null;
+      if (failures?.count >= 5) throw bad('Terlalu banyak percobaan. Coba lagi nanti.', 429);
+      if (typeof body.currentPassword !== 'string' || body.currentPassword.length > 256 || !verifyPassword(body.currentPassword, user.password_hash)) {
+        loginFailures.set(key, { count: (failures?.count || 0) + 1, since: failures?.since || Date.now() });
+        throw bad('Kata sandi saat ini salah.', 403);
+      }
+      loginFailures.delete(key);
+      tx(() => {
+        if (one('SELECT id FROM users WHERE username=? AND id<>?', username, user.id)) throw bad('Username sudah digunakan.', 409);
+        run('UPDATE users SET name=?, username=? WHERE id=?', name, username, user.id);
+        audit(user, 'user', user.id, 'profile_updated');
+      });
+      profile = { ...session, name, username };
+    }
+    return json(res, 200, { id: profile.id, name: profile.name, username: profile.username, role: profile.role,
+      store: one('SELECT name FROM stores WHERE id=?', profile.store_id).name });
+  }
   if(method==='GET'&&path==='/api/dashboard') { needRole(u,['owner']); return json(res,200,dashboard(u.store_id)); }
   if (method === 'GET' && path === '/api/reports') {
     needRole(u, ['owner']);
@@ -278,10 +332,26 @@ async function api(req,res,url) {
   if(method==='POST'&&path==='/api/opening') { needRole(u,['owner']); const b=await bodyOf(req), amount=money(b.amount), effective=date(b.effectiveOn); tx(()=>{run('UPDATE opening_balances SET amount=?,effective_on=? WHERE store_id=?',amount,effective,u.store_id);audit(u,'opening_balance',u.store_id,'update',`${effective}: ${amount}`);}); return json(res,200,{ok:true}); }
   if(method==='GET'&&path==='/api/customers') return json(res,200,all('SELECT * FROM customers WHERE store_id=? ORDER BY created_at DESC',u.store_id).map(row=>serializeCustomer(row,u.role)));
   if(method==='POST'&&path==='/api/customers') { const b=await bodyOf(req), id=uid(); const name=required(b.name,'Nama pelanggan'), phone=String(b.phone||'').replace(/[^\d+]/g,''); run('INSERT INTO customers VALUES(?,?,?,?,?,?)',id,u.store_id,name,phone,String(b.notes||''),now()); audit(u,'customer',id,'create'); return json(res,201,{id}); }
-  if(method==='GET'&&path==='/api/units') return json(res,200,all('SELECT u.*,m.serial,s.id sale_id FROM units u LEFT JOIN v2_unit_meta m ON m.unit_id=u.id LEFT JOIN sales s ON s.unit_id=u.id AND NOT EXISTS(SELECT 1 FROM v2_customer_returns cr WHERE cr.sale_id=s.id AND cr.received_on IS NOT NULL) WHERE u.store_id=? ORDER BY u.created_at DESC',u.store_id).map(x=>u.role==='owner'?({...x,total_cost:sumMoney(x.purchase_amount,x.repair_amount,x.extra_amount),paid:paid('unit',x.id),remaining:v2.unitDebt(x)}):({id:x.id,code:x.code,category:x.category,model:x.model,specs:x.specs,serial:x.serial,target_amount:x.target_amount,status:x.status,sale_id:x.sale_id})));
+  if (method === 'GET' && path === '/api/units') {
+    const units = all(`SELECT un.*,m.serial,s.id sale_id,ud.details unit_json,cd.details catalog_json
+      FROM units un LEFT JOIN v2_unit_meta m ON m.unit_id=un.id
+      LEFT JOIN unit_details ud ON ud.unit_id=un.id
+      LEFT JOIN v2_unit_products up ON up.unit_id=un.id LEFT JOIN catalog_details cd ON cd.product_id=up.product_id
+      LEFT JOIN sales s ON s.unit_id=un.id AND NOT EXISTS(SELECT 1 FROM v2_customer_returns cr WHERE cr.sale_id=s.id AND cr.received_on IS NOT NULL)
+      WHERE un.store_id=? ORDER BY un.created_at DESC`, u.store_id);
+    return json(res, 200, units.map(({ unit_json, catalog_json, ...row }) => {
+      const unitDetails = JSON.parse(unit_json || '{}');
+      const catalogDetails = JSON.parse(catalog_json || '{}');
+      if (u.role === 'owner') return { ...row, unitDetails, catalogDetails, total_cost: sumMoney(row.purchase_amount,row.repair_amount,row.extra_amount), paid: paid('unit', row.id), remaining: v2.unitDebt(row) };
+      const { id, code, category, model, specs, target_amount, status, sale_id } = row;
+      if (u.role === 'cashier') for (const key of ['imei1', 'imei2', 'imeiProof', 'purchaseProof']) delete unitDetails[key];
+      return { id, code, category, model, specs, target_amount, status, sale_id, unitDetails, catalogDetails,
+        ...(u.role === 'service' ? { serial: row.serial } : {}) };
+    }));
+  }
   if(method==='POST'&&path==='/api/units') { needRole(u,['owner']); const b=await bodyOf(req), id=uid(), code=required(b.code,'Kode unit'); if(!['Laptop','HP'].includes(b.category)) throw bad('Kategori tidak valid.'); const status=b.status||'Belum dikerjakan'; if(!['Belum dikerjakan','Dalam perbaikan','Menunggu sparepart','Minus / rusak','Siap dijual','Retur'].includes(status)) throw bad('Status tidak valid.'); tx(()=>{run('INSERT INTO units VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',id,u.store_id,code,b.category,required(b.model,'Model'),String(b.specs||''),String(b.supplier||''),date(b.intakeDate),money(b.purchaseAmount),money(b.repairAmount||0),money(b.extraAmount||0),money(b.targetAmount||0),status,String(b.notes||''),now());if(status==='Retur')run('INSERT INTO unit_returns VALUES(?,?)',id,b.intakeDate);audit(u,'unit',id,'create');}); return json(res,201,{id}); }
   const unitMatch=path.match(/^\/api\/units\/([^/]+)\/status$/);
-  if(method==='PATCH'&&unitMatch) { needRole(u,['owner']); const b=await bodyOf(req), x=one('SELECT * FROM units WHERE id=? AND store_id=?',unitMatch[1],u.store_id); if(!x) throw bad('Unit tidak ditemukan.',404); if(v2.activeSale(x.id)) throw bad('Unit sudah terjual.'); if(one('SELECT id FROM v2_receipt_items WHERE unit_id=?',x.id)||one('SELECT id FROM v2_customer_returns cr JOIN sales s ON s.id=cr.sale_id WHERE s.unit_id=? AND cr.received_on IS NOT NULL',x.id))throw bad('Gunakan QC untuk mengubah kelayakan unit v2.'); if(x.status==='Retur') throw bad('Unit retur memerlukan koreksi untuk dibuka kembali.'); if(!['Belum dikerjakan','Dalam perbaikan','Menunggu sparepart','Minus / rusak','Siap dijual','Retur'].includes(b.status)) throw bad('Status tidak valid.'); tx(()=>{run('UPDATE units SET status=? WHERE id=?',b.status,x.id);if(b.status==='Retur')run('INSERT INTO unit_returns VALUES(?,?)',x.id,date(b.returnedOn||new Date().toISOString().slice(0,10)));audit(u,'unit',x.id,'status',`${x.status} → ${b.status}`);}); return json(res,200,{ok:true}); }
+  if(method==='PATCH'&&unitMatch) { needRole(u,['owner']); const b=await bodyOf(req), x=one('SELECT * FROM units WHERE id=? AND store_id=?',unitMatch[1],u.store_id); if(!x) throw bad('Unit tidak ditemukan.',404); if(v2.activeSale(x.id)) throw bad('Unit sudah terjual.'); if(b.status==='Siap dijual'&&v2.activationHeld(x.id)) throw bad('Selesaikan temuan aktivasi melalui QC.'); if(one('SELECT id FROM v2_receipt_items WHERE unit_id=?',x.id)||one('SELECT id FROM v2_customer_returns cr JOIN sales s ON s.id=cr.sale_id WHERE s.unit_id=? AND cr.received_on IS NOT NULL',x.id))throw bad('Gunakan QC untuk mengubah kelayakan unit v2.'); if(x.status==='Retur') throw bad('Unit retur memerlukan koreksi untuk dibuka kembali.'); if(!['Belum dikerjakan','Dalam perbaikan','Menunggu sparepart','Minus / rusak','Siap dijual','Retur'].includes(b.status)) throw bad('Status tidak valid.'); tx(()=>{run('UPDATE units SET status=? WHERE id=?',b.status,x.id);if(b.status==='Retur')run('INSERT INTO unit_returns VALUES(?,?)',x.id,date(b.returnedOn||new Date().toISOString().slice(0,10)));audit(u,'unit',x.id,'status',`${x.status} → ${b.status}`);}); return json(res,200,{ok:true}); }
   if(method==='GET'&&path==='/api/services') { needRole(u,['owner','service']); return json(res,200,all(`SELECT j.*,c.name customer_name,i.id invoice_id,i.number invoice_number FROM service_jobs j JOIN customers c ON c.id=j.customer_id LEFT JOIN invoices i ON i.source_type='service' AND i.source_id=j.id WHERE j.store_id=? ORDER BY j.created_at DESC`,u.store_id).map(x=>({...x,paid:paid('service',x.id),remaining:x.status==='Selesai'?subtractMoney(sumMoney(x.part_charge,x.service_charge),paid('service',x.id)):null}))); }
   if(method==='POST'&&path==='/api/services') { needRole(u,['owner','service']); const b=await bodyOf(req), customer=one('SELECT * FROM customers WHERE id=? AND store_id=?',b.customerId,u.store_id); if(!customer) throw bad('Pelanggan wajib dipilih.'); const id=uid(); run('INSERT INTO service_jobs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',id,u.store_id,required(b.code,'ID servis'),customer.id,date(b.receivedOn),null,required(b.category,'Kategori'),required(b.model,'Model'),required(b.complaint,'Keluhan'),String(b.partCode||''),money(b.partUnitCost||0),money(b.partQty||0),money(b.partCharge||0),money(b.serviceCharge||0),money(b.technicianCost||0),money(b.estimateAmount||0),'Diterima',String(b.notes||''),now()); audit(u,'service',id,'create'); return json(res,201,{id}); }
   const serviceEdit=path.match(/^\/api\/services\/([^/]+)$/);
@@ -290,7 +360,7 @@ async function api(req,res,url) {
   if(method==='PATCH'&&serviceMatch) { needRole(u,['owner','service']); const b=await bodyOf(req); const result=tx(()=>{ const job=one('SELECT j.*,c.name customer_name FROM service_jobs j JOIN customers c ON c.id=j.customer_id WHERE j.id=? AND j.store_id=?',serviceMatch[1],u.store_id); if(!job) throw bad('Servis tidak ditemukan.',404); if(['Selesai','Batal'].includes(job.status)) throw bad('Servis sudah ditutup.'); if(!['Dalam pengerjaan','Menunggu sparepart','Selesai','Batal'].includes(b.status)) throw bad('Status tidak valid.'); if(b.status==='Batal'&&paid('service',job.id)>0) throw bad('DP harus diselesaikan pemilik sebelum pembatalan.'); run('UPDATE service_jobs SET status=?,completed_on=? WHERE id=?',b.status,b.status==='Selesai'?date(b.completedOn):null,job.id); if(b.status==='Selesai') { const amount=storedMoney(sumMoney(job.part_charge,job.service_charge)); if(paid('service',job.id)>amount) throw bad('DP melebihi invoice akhir. Perlu koreksi pemilik.'); invoice(u.store_id,'service',job.id,amount,{store:one('SELECT name FROM stores WHERE id=?',u.store_id).name,source:job.code,person:job.customer_name,date:b.completedOn,amount}); } audit(u,'service',job.id,'status',`${job.status} → ${b.status}`); return {ok:true}; }); return json(res,200,result); }
   if(method==='GET'&&path==='/api/payments') return json(res,200,all('SELECT p.*,d.id document_id,d.number document_number,d.kind,d.snapshot,r.reversal_payment_id reversed_by,r.reason correction_reason,origin.number original_document_number FROM payments p JOIN payment_documents d ON d.payment_id=p.id LEFT JOIN payment_reversals r ON r.original_payment_id=p.id LEFT JOIN payment_reversals correction ON correction.reversal_payment_id=p.id LEFT JOIN payment_documents origin ON origin.payment_id=correction.original_payment_id WHERE p.store_id=? ORDER BY p.created_at DESC',u.store_id).filter(x=>u.role==='owner'||(u.role==='cashier'?['sale','customer_refund'].includes(x.source_type):x.source_type==='service')).map(({ snapshot, ...row }) => ({ ...row, details: JSON.parse(snapshot) })));
   if(method==='POST'&&path==='/api/payments') { const b=await bodyOf(req); needRole(u,b.sourceType==='sale'?['owner','cashier']:b.sourceType==='service'?['owner','service']:['owner']); const result=tx(()=>{
-    if(b.requestKey){const prior=one('SELECT * FROM v2_payment_requests WHERE request_key=?',b.requestKey);if(prior){if(prior.store_id!==u.store_id||prior.request_hash!==hash(JSON.stringify(b)))throw bad('Kunci pembayaran sudah dipakai dengan isi berbeda.',409);return JSON.parse(prior.result);}}
+    if(b.requestKey){const prior=one('SELECT * FROM v2_payment_requests WHERE request_key=? AND store_id=?',b.requestKey,u.store_id);if(prior){if(prior.request_hash!==hash(JSON.stringify(b)))throw bad('Kunci pembayaran sudah dipakai dengan isi berbeda.',409);return JSON.parse(prior.result);}}
     const payment=postPayment(u,b);if(b.requestKey)run('INSERT INTO v2_payment_requests VALUES(?,?,?,?)',b.requestKey,u.store_id,hash(JSON.stringify(b)),JSON.stringify(payment));return payment;
   }); return json(res,201,result); }
   const paymentChange = path.match(/^\/api\/payments\/([^/]+)\/(reverse|correct)$/);
@@ -319,9 +389,9 @@ async function api(req,res,url) {
   if(method==='GET'&&path==='/api/users') { needRole(u,['owner']); return json(res,200,all('SELECT id,username,name,role,active FROM users WHERE store_id=? ORDER BY created_at',u.store_id)); }
   if(method==='POST'&&path==='/api/users') { needRole(u,['owner']); const b=await bodyOf(req), id=uid(), pass=required(b.password,'Kata sandi'); if(pass.length<10) throw bad('Kata sandi minimal 10 karakter.'); if(!['owner','cashier','service'].includes(b.role)) throw bad('Peran tidak valid.'); run('INSERT INTO users VALUES(?,?,?,?,?,?,?,?)',id,u.store_id,required(b.username,'Username').toLowerCase(),required(b.name,'Nama'),b.role,passwordHash(pass),1,now()); audit(u,'user',id,'create'); return json(res,201,{id}); }
   const userMatch=path.match(/^\/api\/users\/([^/]+)\/deactivate$/);
-  if(method==='POST'&&userMatch) { needRole(u,['owner']); if(userMatch[1]===u.id) throw bad('Tidak dapat menonaktifkan akun sendiri.'); run('UPDATE users SET active=0 WHERE id=? AND store_id=?',userMatch[1],u.store_id); run('DELETE FROM sessions WHERE user_id=?',userMatch[1]); audit(u,'user',userMatch[1],'deactivate'); return json(res,200,{ok:true}); }
+  if(method==='POST'&&userMatch) { needRole(u,['owner']); if(userMatch[1]===u.id) throw bad('Tidak dapat menonaktifkan akun sendiri.'); tx(()=>{ const result=run('UPDATE users SET active=0 WHERE id=? AND store_id=?',userMatch[1],u.store_id); if(!result.changes) throw bad('Staf tidak ditemukan.',404); run('DELETE FROM sessions WHERE user_id=?',userMatch[1]); audit(u,'user',userMatch[1],'deactivate'); }); return json(res,200,{ok:true}); }
   const resetMatch=path.match(/^\/api\/users\/([^/]+)\/password$/);
-  if(method==='POST'&&resetMatch) { needRole(u,['owner']); const b=await bodyOf(req), pass=required(b.password,'Kata sandi');if(pass.length<10) throw bad('Kata sandi minimal 10 karakter.');const target=one('SELECT id FROM users WHERE id=? AND store_id=?',resetMatch[1],u.store_id);if(!target) throw bad('Staf tidak ditemukan.',404);tx(()=>{run('UPDATE users SET password_hash=? WHERE id=?',passwordHash(pass),target.id);run('DELETE FROM sessions WHERE user_id=?',target.id);audit(u,'user',target.id,'password_reset');});return json(res,200,{ok:true}); }
+  if(method==='POST'&&resetMatch) { needRole(u,['owner']); const b=await bodyOf(req), pass=required(b.password,'Kata sandi');if(pass.length<10) throw bad('Kata sandi minimal 10 karakter.');const target=one('SELECT id FROM users WHERE id=? AND store_id=?',resetMatch[1],u.store_id);if(!target) throw bad('Staf tidak ditemukan.',404);tx(()=>{run('UPDATE users SET password_hash=? WHERE id=?',passwordHash(pass),target.id);run('DELETE FROM sessions WHERE user_id=?',target.id);run('DELETE FROM saved_recovery_codes WHERE user_id=?',target.id);run('DELETE FROM recovery_codes WHERE user_id=?',target.id);audit(u,'user',target.id,'password_reset');});return json(res,200,{ok:true}); }
   throw bad('Rute tidak ditemukan.',404);
 }
 

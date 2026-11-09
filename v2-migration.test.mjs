@@ -32,5 +32,68 @@ try{
   assert.equal((await get('/api/dashboard')).cash,2000000);assert.equal((await get('/api/audit')).some(x=>x.detail==='Histori asli'),true);
   const backup=readdirSync(temp).find(f=>f.startsWith('before-v2-'));assert(backup);const original=new DatabaseSync(join(temp,backup));assert.equal(original.prepare('SELECT COUNT(*) n FROM sales').get().n,1);assert.equal(original.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='v2_schema'").get().n,0);original.close();
   const migrated=new DatabaseSync(path);assert.equal(migrated.prepare('PRAGMA integrity_check').get().integrity_check,'ok');assert.deepEqual(migrated.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(migrated.prepare('SELECT snapshot FROM invoices WHERE id=?').get('invoice').snapshot.includes('LEGACY-SALE'),true);migrated.close();
+  const isolationBackup = readdirSync(temp).find(file => file.startsWith('before-store-isolation-'));
+  assert.ok(isolationBackup);
+  const beforeIsolation = new DatabaseSync(join(temp, isolationBackup));
+  assert.equal(beforeIsolation.prepare('SELECT COUNT(*) AS count FROM stores').get().count, 1);
+  beforeIsolation.close();
+
+  async function request(route, cookie, body, status = 200) {
+    const response = await fetch(`http://127.0.0.1:${port}${route}`, {
+      method: body ? 'POST' : 'GET',
+      headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const content = response.headers.get('content-type')?.includes('application/json') ? await response.json() : await response.text();
+    assert.equal(response.status, status, `${route} ${JSON.stringify(content)}`);
+    return { content, cookie: response.headers.get('set-cookie')?.split(';')[0] };
+  }
+
+  const newOwner = { storeName: 'New store', name: 'New owner', username: 'new-owner', password };
+  const { content: registered } = await request('/api/register', '', { ...newOwner, openingAmount: 999999 }, 201);
+  assert.match(registered.recoveryCode, /^[0-9A-F]{4}(?:-[0-9A-F]{4}){7}$/);
+  await request('/api/register', '', newOwner, 409);
+  const { cookie: newSession } = await request('/api/login', '', newOwner);
+  const originalSession = `tk_session=${token}`;
+  assert.equal((await request('/api/me', newSession)).content.store, newOwner.storeName);
+  for (const route of ['/api/units', '/api/customers', '/api/sales', '/api/services', '/api/payments', '/api/v2/products']) {
+    assert.deepEqual((await request(route, newSession)).content, [], route);
+  }
+  assert.equal((await request('/api/dashboard', newSession)).content.cash, 0);
+  await request('/document?type=invoice&id=invoice', newSession, null, 404);
+  await request('/api/users/user/deactivate', newSession, {}, 404);
+  assert.equal((await get('/api/me')).id, 'user');
+
+  const unit = { code: 'SAME-STOCK', category: 'Laptop', model: 'Shared model', intakeDate: '2026-11-01', purchaseAmount: 100, status: 'Siap dijual' };
+  const sale = { code: 'SAME-SALE', soldOn: '2026-11-02', requestKey: 'same-sale-key', price: 200, initialPayment: 200, method: 'Cash' };
+  for (const cookie of [originalSession, newSession]) {
+    const { content: stock } = await request('/api/units', cookie, unit, 201);
+    await request('/api/units', cookie, unit, 409);
+    const payload = { ...sale, unitId: stock.id };
+    const { content: created } = await request('/api/sales', cookie, payload, 201);
+    assert.deepEqual((await request('/api/sales', cookie, payload, 201)).content, created);
+    const rows = (await request('/api/sales', cookie)).content;
+    assert.equal(rows.find(row => row.id === created.id).invoice_number, 'INV-000001');
+  }
+  assert.deepEqual((await request('/api/sales', newSession)).content.map(row => row.code), ['SAME-SALE']);
+  assert.equal((await get('/api/sales')).length, 2);
+  await request('/api/recovery/saved/replace', newSession, { currentPassword: 'wrong-password' }, 403);
+  const { content: replacement } = await request('/api/recovery/saved/replace', newSession, { currentPassword: password });
+  const newPassword = 'different-password-123';
+  await request('/api/recovery/saved/reset', '', { recoveryCode: registered.recoveryCode, password: newPassword }, 400);
+  const attempts = await Promise.all([1, 2].map(() => fetch(`http://127.0.0.1:${port}/api/recovery/saved/reset`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recoveryCode: replacement.recoveryCode.toLowerCase().replaceAll('-', ' '), password: newPassword }),
+  })));
+  assert.deepEqual(attempts.map(response => response.status).sort(), [200, 400]);
+  const reset = await attempts.find(response => response.ok).json();
+  assert.equal(reset.username, newOwner.username);
+  assert.notEqual(reset.recoveryCode, replacement.recoveryCode);
+  await request('/api/me', newSession, null, 401);
+  await request('/api/login', '', newOwner, 401);
+  await request('/api/login', '', { username: newOwner.username, password: newPassword });
+  assert.equal((await get('/api/me')).id, 'user');
+  console.log('Saved recovery passed: offline issuance, password-protected replacement, concurrent replay rejection, account-scoped session revocation and new login.');
+  console.log('Store isolation passed: empty registration, cross-store session and document protection, and independent stock codes and invoice sequences.');
   console.log('Legacy migration passed: existing sessions, accounts, IDs, invoices, payment snapshots, audit and balances preserved; pre-migration SQLite backup verified.');
 }finally{if(server.exitCode===null){server.kill();await once(server,'exit');}rmSync(temp,{recursive:true,force:true});}

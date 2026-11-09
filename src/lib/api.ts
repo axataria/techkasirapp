@@ -1,5 +1,5 @@
 export type Row = Record<string, any>;
-export type User = { id: string; name: string; role: "owner" | "cashier" | "service"; store: string };
+export type User = { id: string; name: string; username: string; role: "owner" | "cashier" | "service"; store: string };
 export class ApiError extends Error {
   constructor(message: string, public status: number) { super(message); this.name = "ApiError"; }
 }

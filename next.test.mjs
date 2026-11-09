@@ -33,6 +33,9 @@ try {
   assert.match(html, /TechKasir V3/);
   assert.doesNotMatch(html, /src="\/app.js"|href="\/style.css"/);
   for (const path of ['/dashboard', '/sales', '/orders', '/customers', '/warranties', '/customer-returns', '/units', '/receiving', '/qc', '/supplier-returns', '/reports', '/settings', '/staff', '/finance', '/payments', '/audit']) assert.equal((await request(path)).status, 200, path);
+  const forgotPassword = await request('/lupa-kata-sandi');
+  assert.equal(forgotPassword.status, 200);
+  assert.match(await forgotPassword.text(), /Kode pemulihan simpanan/);
   for (const path of ['/style.css', '/app.js', '/index.html', '/not-a-page']) assert.equal((await request(path)).status, 404, path);
   const assets = [...html.matchAll(/(?:src|href)="([^\"]*\/_next\/static\/[^\"]+)"/g)].map(match => match[1].replaceAll('&amp;', '&'));
   for (const asset of new Set(assets)) assert.equal((await request(asset)).status, 200, asset);

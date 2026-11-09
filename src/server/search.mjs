@@ -26,7 +26,7 @@ export async function searchRecords({ query, offset = 0, role, read, includeV2 =
     const rows = Array.isArray(response)?response:response.claims||[];
     for (const row of rows) {
       const [label, page] = scopes[scope];
-      const fields = Object.entries({ ...row, ...(row.details || {}) }).filter(([key,value]) =>
+      const fields = Object.entries({ ...row, ...(row.details || {}), ...(row.catalogDetails?.brand ? { brand: row.catalogDetails.brand } : {}) }).filter(([key,value]) =>
         !/(^id$|_id$|password|snapshot|created_at)/.test(key) && value !== null && typeof value !== 'object');
       const text = normalize([label, scope, ...fields.map(([,value]) => value)].join(' '));
       const date = row.sold_on || row.received_on || row.paid_on || row.happened_on || row.intake_date || row.created_at?.slice(0,10) || '';

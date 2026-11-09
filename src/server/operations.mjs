@@ -1,3 +1,6 @@
+import { createProductDetails } from "./product-details.mjs";
+import { activationHold } from "../../shared/product-fields.mjs";
+
 // V2 extends the existing database and accounting helpers without changing authentication.
 export function createV2(c) {
   const { db, one, all, run, tx, uid, now, date, money, required, bad, needRole, audit, nextNumber, invoice, postPayment, paid, json, bodyOf, sumMoney, subtractMoney } = c;
@@ -40,6 +43,9 @@ export function createV2(c) {
     WHEN EXISTS(SELECT 1 FROM sales s WHERE s.unit_id=NEW.unit_id AND NOT EXISTS(SELECT 1 FROM v2_customer_returns r WHERE r.sale_id=s.id AND r.received_on IS NOT NULL))
     BEGIN SELECT RAISE(ABORT,'Unit sudah terjual.'); END;
   `);
+  const productDetails = createProductDetails(c);
+  const readUnitDetails = id => JSON.parse(one('SELECT details FROM unit_details WHERE unit_id=?', id)?.details || '{}');
+  const activationHeld = id => readUnitDetails(id).activation === activationHold;
   // Legacy units each get their own catalogue entry. Similar model names are never silently merged.
   tx(()=>{for(const un of all('SELECT * FROM units WHERE id NOT IN (SELECT unit_id FROM v2_unit_products)')){
     const product=uid();run('INSERT INTO v2_products VALUES(?,?,?,?,?,?,?)',product,un.store_id,un.category,un.model,un.specs,1,now());run('INSERT INTO v2_unit_products VALUES(?,?)',un.id,product);
@@ -86,10 +92,11 @@ export function createV2(c) {
     if(path==='/api/sales'&&method==='POST') {
       needRole(u,['owner','cashier']);const b=await bodyOf(req);
       const result=tx(()=>{
-        const key=String(b.requestKey||uid()), digest=c.hash(JSON.stringify(b));
-        const prior=one('SELECT m.*,s.store_id FROM v2_sale_meta m JOIN sales s ON s.id=m.sale_id WHERE request_key=?',key);
-        if(prior){if(prior.store_id!==u.store_id||prior.request_hash!==digest)throw bad('Kunci transaksi sudah dipakai dengan isi berbeda.',409);return {id:prior.sale_id};}
-        const un=get('units',b.unitId,u);if(un.status!=='Siap dijual'||activeSale(un.id))throw bad('Unit belum siap atau sudah terjual.');
+        const requestKey=String(b.requestKey||uid()), digest=c.hash(JSON.stringify(b));
+        const key=c.hash(JSON.stringify([u.store_id,requestKey]));
+        const prior=one('SELECT m.* FROM v2_sale_meta m JOIN sales s ON s.id=m.sale_id WHERE s.store_id=? AND m.request_key IN (?,?) ORDER BY m.request_key=? DESC LIMIT 1',u.store_id,key,requestKey,key);
+        if(prior){if(prior.request_hash!==digest)throw bad('Kunci transaksi sudah dipakai dengan isi berbeda.',409);return {id:prior.sale_id};}
+        const un=get('units',b.unitId,u);if(un.status!=='Siap dijual'||activeSale(un.id)||activationHeld(un.id))throw bad('Unit belum siap atau sudah terjual.');
         const price=money(b.price),discount=money(b.discount||0),cost=money(b.saleCost||0),initial=money(b.initialPayment||0),day=date(b.soldOn);
         if(day<un.intake_date)throw bad('Tanggal jual mendahului barang masuk.');
         const lastMove=one('SELECT MAX(happened_on) day FROM v2_movements WHERE unit_id=?',un.id)?.day;if(lastMove&&day<lastMove)throw bad('Tanggal jual mendahului proses terakhir unit.');
@@ -107,17 +114,24 @@ export function createV2(c) {
       });json(res,201,result);return true;
     }
     if(!path.startsWith('/api/v2/'))return false;
-    if(!['GET','POST'].includes(method))throw bad('Metode tidak diizinkan.',405);
+    if(!['GET','POST'].includes(method) && !(method==='PATCH' && /^\/api\/v2\/products\/[^/]+$/.test(path)))throw bad('Metode tidak diizinkan.',405);
     const kind=path.slice(8).split('/')[0],id=path.split('/')[4],action=path.split('/')[5];
     const owner=()=>needRole(u,['owner']);
     if(kind==='units'&&id&&action==='cost'&&method==='POST'){
       owner();const b=await bodyOf(req),result=tx(()=>{const un=get('units',id,u);if(activeSale(id)||['Retur','Karantina supplier'].includes(un.status))throw bad('Biaya hanya dapat ditambahkan ke unit milik toko yang belum terjual.');const amount=money(b.amount);if(!amount)throw bad('Isi biaya lebih dari nol.');const day=date(b.happenedOn),reason=required(b.reason,'Keterangan perbaikan');if(day<un.intake_date)throw bad('Biaya mendahului penerimaan.');run('UPDATE units SET repair_amount=? WHERE id=?',BigInt(c.storedMoney(sumMoney(un.repair_amount,amount))),id);audit(u,'unit',id,'repair_cost',`${amount}: ${reason}`);move(u,id,'Biaya perbaikan',id,day);return {id};});json(res,201,result);return true;
     }
     if(kind==='products'){
-      if(method==='GET'){json(res,200,all('SELECT * FROM v2_products WHERE store_id=? ORDER BY model',u.store_id).map(p=>({...p,unit_ids:all('SELECT unit_id FROM v2_unit_products WHERE product_id=?',p.id).map(x=>x.unit_id)})));return true;}
+      if(method==='GET'){json(res,200,all('SELECT p.*,c.details FROM v2_products p LEFT JOIN catalog_details c ON c.product_id=p.id WHERE p.store_id=? ORDER BY p.model',u.store_id).map(({ details, ...product })=>({...product,catalogDetails:JSON.parse(details||'{}'),unit_ids:all('SELECT unit_id FROM v2_unit_products WHERE product_id=?',product.id).map(x=>x.unit_id)})));return true;}
       owner();const b=await bodyOf(req);const result=tx(()=>{
+        if (method === 'PATCH') {
+          const product = get('v2_products', id, u);
+          const details = productDetails.catalog(product.category, b.catalogDetails);
+          run('INSERT INTO catalog_details VALUES(?,?) ON CONFLICT(product_id) DO UPDATE SET details=excluded.details', id, JSON.stringify(details));
+          audit(u, 'product', id, 'edit_details');
+          return { id };
+        }
         if(id){get('v2_products',id,u);if(![0,1].includes(b.active))throw bad('Status produk tidak valid.');run('UPDATE v2_products SET active=? WHERE id=?',b.active,id);audit(u,'product',id,'archive',String(b.active));return {id};}
-        if(!['Laptop','HP'].includes(b.category))throw bad('Kategori tidak valid.');const productId=uid();run('INSERT INTO v2_products VALUES(?,?,?,?,?,?,?)',productId,u.store_id,b.category,required(b.model,'Model'),String(b.specs||''),1,now());audit(u,'product',productId,'create');return {id:productId};
+        if(!['Laptop','HP'].includes(b.category))throw bad('Kategori tidak valid.');const productId=uid();run('INSERT INTO v2_products VALUES(?,?,?,?,?,?,?)',productId,u.store_id,b.category,required(b.model,'Model'),String(b.specs||''),1,now());if(b.catalogDetails!==undefined)run('INSERT INTO catalog_details VALUES(?,?)',productId,JSON.stringify(productDetails.catalog(b.category,b.catalogDetails)));audit(u,'product',productId,'create');return {id:productId};
       });json(res,201,result);return true;
     }
     if(kind==='summary'&&method==='GET'){
@@ -164,7 +178,17 @@ export function createV2(c) {
       const result=tx(()=>{
         if(!id){get('v2_suppliers',b.supplierId,u);const day=date(b.receivedOn),items=b.items;if(!Array.isArray(items)||!items.length||items.length>100)throw bad('Isi 1 sampai 100 unit.');
           const receiptId=uid();run('INSERT INTO v2_receipts VALUES(?,?,?,?,?,?,?,?)',receiptId,u.store_id,nextNumber(u.store_id,'IN'),b.supplierId,day,'Draf',String(b.notes||''),now());
-          for(const item of items){if(!item||typeof item!=='object'||Array.isArray(item))throw bad('Data unit tidak valid.');c.validateTextFields(item);item.code=required(item.code,'Kode unit');item.model=required(item.model,'Model');if(!['Laptop','HP'].includes(item.category))throw bad('Kategori tidak valid.');if(item.productId){const product=get('v2_products',item.productId,u);if(!product.active)throw bad('Produk sudah diarsipkan.');if(product.category!==item.category||product.model!==item.model||product.specs!==String(item.specs||''))throw bad('Model dan spesifikasi harus cocok dengan produk terpilih.');}for(const k of ['purchaseAmount','repairAmount','extraAmount','targetAmount'])money(item[k]||0);run('INSERT INTO v2_receipt_items VALUES(?,?,?,?)',uid(),receiptId,null,JSON.stringify(item));}
+          const receiptImeis = new Set();
+          for(const item of items){if(!item||typeof item!=='object'||Array.isArray(item))throw bad('Data unit tidak valid.');c.validateTextFields(item);item.code=required(item.code,'Kode unit');item.model=required(item.model,'Model');if(!['Laptop','HP'].includes(item.category))throw bad('Kategori tidak valid.');if(item.productId){const product=get('v2_products',item.productId,u);if(!product.active)throw bad('Produk sudah diarsipkan.');if(product.category!==item.category||product.model!==item.model||product.specs!==String(item.specs||''))throw bad('Model dan spesifikasi harus cocok dengan produk terpilih.');}if (item.unitDetails !== undefined) {
+            item.unitDetails = productDetails.unit(item.category, item.unitDetails, true);
+            for (const imei of [item.unitDetails.imei1, item.unitDetails.imei2].filter(Boolean)) {
+              if (receiptImeis.has(imei)) throw bad('IMEI berulang dalam dokumen penerimaan.', 409);
+              productDetails.checkImei(u.store_id, imei);
+              receiptImeis.add(imei);
+            }
+          }
+          if (item.catalogDetails !== undefined) item.catalogDetails = productDetails.catalog(item.category, item.catalogDetails);
+          for(const k of ['purchaseAmount','repairAmount','extraAmount','targetAmount'])money(item[k]||0);run('INSERT INTO v2_receipt_items VALUES(?,?,?,?)',uid(),receiptId,null,JSON.stringify(item));}
           audit(u,'receipt',receiptId,'create');return {id:receiptId};
         }
         const r=get('v2_receipts',id,u);if(action!=='finalize')throw bad('Aksi tidak valid.');if(r.status==='Diterima')return {id};
@@ -172,8 +196,13 @@ export function createV2(c) {
         for(const item of all('SELECT * FROM v2_receipt_items WHERE receipt_id=?',id)){
           const d=JSON.parse(item.data),unit=uid();run('INSERT INTO units VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',unit,u.store_id,d.code,d.category,d.model,String(d.specs||''),supplier.name,r.received_on,money(d.purchaseAmount||0),money(d.repairAmount||0),money(d.extraAmount||0),money(d.targetAmount||0),'Menunggu QC',String(d.notes||''),now());
           let product=d.productId;if(product){if(!get('v2_products',product,u).active)throw bad('Produk sudah diarsipkan.');}else{product=uid();run('INSERT INTO v2_products VALUES(?,?,?,?,?,?,?)',product,u.store_id,d.category,d.model,String(d.specs||''),1,now());}
+          if (!d.productId && d.catalogDetails) run('INSERT INTO catalog_details VALUES(?,?)', product, JSON.stringify(d.catalogDetails));
           run('INSERT INTO v2_unit_products VALUES(?,?)',unit,product);
-          run('INSERT INTO v2_unit_meta VALUES(?,?,?)',unit,String(d.serial||'').trim(),u.store_id);run('UPDATE v2_receipt_items SET unit_id=? WHERE id=?',unit,item.id);move(u,unit,'Barang masuk',id,r.received_on);
+          const serial = String(d.serial || '').trim();
+          if (d.category === 'HP' && /^\d{15}$/.test(serial)) productDetails.checkImei(u.store_id, serial);
+          run('INSERT INTO v2_unit_meta VALUES(?,?,?)',unit,serial,u.store_id);
+          if (d.unitDetails) productDetails.writeUnit(u.store_id, unit, d.unitDetails);
+          run('UPDATE v2_receipt_items SET unit_id=? WHERE id=?',unit,item.id);move(u,unit,'Barang masuk',id,r.received_on);
         }
         run("UPDATE v2_receipts SET status='Diterima' WHERE id=?",id);audit(u,'receipt',id,'finalize');return {id};
       });json(res,201,result);return true;
@@ -188,6 +217,11 @@ export function createV2(c) {
         if(b.result==='Lulus'&&Object.values(checks).includes('Gagal'))throw bad('QC gagal tidak dapat dinyatakan lulus.');
         if((b.result!=='Lulus'||Object.values(checks).includes('Tidak berlaku'))&&!String(b.notes||'').trim())throw bad('Catatan pemeriksaan wajib diisi.');
         const day=date(b.checkedOn);const lastMove=one('SELECT MAX(happened_on) day FROM v2_movements WHERE unit_id=?',un.id)?.day;if(lastMove&&day<lastMove)throw bad('QC mendahului proses terakhir unit.');if(day<un.intake_date)throw bad('QC mendahului penerimaan.');
+        const previousDetails = readUnitDetails(un.id);
+        if (b.unitDetails !== undefined && (!b.unitDetails || typeof b.unitDetails !== 'object' || Array.isArray(b.unitDetails))) throw bad('Detail unit tidak valid.');
+        const details = b.unitDetails === undefined ? previousDetails : productDetails.unit(un.category, { ...previousDetails, ...b.unitDetails });
+        if (b.result === 'Lulus' && details.activation === activationHold) throw bad('Selesaikan temuan bypass atau akun terkunci sebelum unit dinyatakan lulus.');
+        if (b.unitDetails !== undefined) productDetails.writeUnit(u.store_id, un.id, details);
         const id=uid();run('INSERT INTO v2_qc VALUES(?,?,?,?,?,?,?,?,?)',id,u.store_id,un.id,b.result,JSON.stringify(checks),String(b.notes||''),u.id,day,now());
         run('UPDATE units SET status=? WHERE id=?',b.result==='Lulus'?'Siap dijual':b.result==='Gagal'?'Minus / rusak':'Dalam perbaikan',un.id);move(u,un.id,`QC ${b.result}`,id,day);audit(u,'qc',id,'create',`${un.code}: ${b.result}`);return {id};
       });json(res,201,result);return true;
@@ -254,5 +288,5 @@ export function createV2(c) {
     return {revenue:rows.reduce((s,r)=>sumMoney(s,r.credit),0),cost:rows.reduce((s,r)=>sumMoney(s,r.cost_credit),0)};
   }
   function inventoryAt(storeId,end){return all(`SELECT u.* FROM units u WHERE u.store_id=? AND u.intake_date<=? AND NOT EXISTS(SELECT 1 FROM unit_returns r WHERE r.unit_id=u.id AND r.returned_on<=?) AND NOT EXISTS(SELECT 1 FROM sales s WHERE s.unit_id=u.id AND s.sold_on<=? AND NOT EXISTS(SELECT 1 FROM v2_customer_returns r WHERE r.sale_id=s.id AND r.received_on<=?))`,storeId,end,end,end,end).reduce((s,u)=>sumMoney(s,u.purchase_amount,u.repair_amount,u.extra_amount),0);}
-  return {handle,active,activeSale,saleDue,credit,v2source,adjustments,inventoryAt,refundDue,unitDebt};
+  return {handle,active,activeSale,activationHeld,saleDue,credit,v2source,adjustments,inventoryAt,refundDue,unitDebt};
 }
