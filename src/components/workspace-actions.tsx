@@ -2,10 +2,15 @@ import { api, today, money, type Row } from "@/lib/api";
 import { text, numeric, date, choice, type Field } from "@/components/record-form";
 import { catalogFields, catalogValues, unitFields, unitValues, productTitle, productSpecs } from "@/components/product-fields";
 import { Button } from "@/components/ui/button";
+import { InvoiceDialog } from "@/components/invoice-dialog";
 import { Status } from "@/components/data-grid";
 import type { WorkspaceContext } from "@/components/workspace-context";
 export const qcChecks = ["Identitas", "Fisik", "Layar", "Baterai", "Input", "Port", "Konektivitas", "Audio/kamera", "Aksesori", "Fungsi utama"];
-export function DocumentLink({ id, type = "payment", label = "Lihat dokumen" }: { id?: string; type?: string; label?: string }) { return id ? <Button asChild variant="outline" size="sm"><a href={`/document?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`} target="_blank" rel="noopener noreferrer">{label}</a></Button> : null; }
+export function DocumentLink({ id, type = "payment", label = "Lihat dokumen" }: { id?: string; type?: string; label?: string }) {
+  if (!id) return null;
+  const href = `/document?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`;
+  return type === "invoice" ? <InvoiceDialog href={href} label={label} /> : <Button asChild variant="outline" size="sm"><a href={href} target="_blank" rel="noopener noreferrer">{label}</a></Button>;
+}
 export function Details({ row, labels }: { row: Row; labels?: Record<string, string> }) { return <dl className="grid gap-4 sm:grid-cols-2">{Object.entries(row).filter(([, v]) => v != null && typeof v !== "object").map(([key, value]) => <div key={key} className="min-w-0"><dt className="caption-2">{labels?.[key] || key.replaceAll("_", " ")}</dt><dd className="mt-1 break-words text-sm">{String(value ?? "—")}</dd></div>)}</dl>; }
 const catalogDetailLabels = { brand: "Merek", platform: "Platform", manufacturerCode: "Kode model pabrikan", storageGB: "Penyimpanan (GB)", ramGB: "RAM (GB)", color: "Warna", networkSupport: "Dukungan jaringan", esim: "eSIM", storageType: "Jenis penyimpanan", processor: "Prosesor", gpu: "GPU", screenInches: "Ukuran layar (inci)", resolution: "Resolusi layar" };
 const unitDetailLabels = { serial: "Serial", condition: "Kondisi", physicalCondition: "Kondisi fisik", imei1: "IMEI utama", imei2: "IMEI kedua", batteryHealth: "Kesehatan baterai (%)", batteryCheckedOn: "Tanggal tes baterai", batteryCycles: "Siklus baterai", signal: "Hasil tes sinyal", testedOperator: "Operator diuji", signalCheckedOn: "Tanggal tes sinyal", carrierLock: "Kunci operator", lockedOperator: "Operator terkunci", origin: "Asal unit", retailer: "Penjual / distributor", imeiRegistration: "Registrasi IMEI", imeiProof: "Referensi Bea Cukai", activation: "Temuan aktivasi", activationNotes: "Catatan aktivasi", repairHistory: "Riwayat servis", accessories: "Kelengkapan", purchaseProof: "Bukti pembelian", warrantyType: "Jenis garansi", warrantyEndsOn: "Akhir garansi" };

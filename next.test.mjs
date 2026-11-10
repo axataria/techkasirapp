@@ -78,7 +78,16 @@ try {
   assert.equal(savedSale.remaining, 0);
   const invoice = await request(`/document?type=invoice&id=${savedSale.invoice_id}`);
   assert.equal(invoice.status, 200);
-  assert.match(await invoice.text(), /V3-SALE-1/);
+  const invoiceHtml = await invoice.text();
+  assert.match(invoiceHtml, /V3-SALE-1/);
+  assert.match(invoiceHtml, /@page\{size:A5 portrait/);
+  assert.match(invoiceHtml, /Cetak \/ Simpan PDF/);
+  const invoicePreview = await request(`/document?type=invoice&id=${savedSale.invoice_id}&preview=1`);
+  assert.equal(invoicePreview.status, 200);
+  const previewHtml = await invoicePreview.text();
+  assert.match(previewHtml, /class="preview"><main id="invoice-sheet"/);
+  assert.match(previewHtml, /V3-SALE-1/);
+  assert.doesNotMatch(previewHtml, /onclick="print\(\)"/);
   const search = await (await request('/api/search', { query: 'V3-SALE-1', offset: 0 })).json();
   assert.ok(search.results.some(row => row.id === sale.id));
   const service = await write('/services', { code: 'V3-SERVICE-1', customerId: customer.id, receivedOn: '2026-11-03', category: 'Laptop', model: 'Laptop servis', complaint: 'Pembersihan perangkat', estimateAmount: 200000, partCode: '', partUnitCost: 0, partQty: 0, partCharge: 0, serviceCharge: 200000, technicianCost: 50000 });
@@ -98,6 +107,12 @@ try {
   cookie = ownerCookie;
   assert.equal((await request('/api/logout', {})).status, 200);
   assert.equal((await request('/api/me')).status, 401);
+  const secondOwner = { username: 'second-owner', password: 'next-second-owner-2026' };
+  assert.equal((await request('/api/register', { ...secondOwner, storeName: 'Second store', name: 'Second owner', openingDate: '2026-11-05', openingAmount: 1250000 })).status, 201);
+  assert.equal((await request('/api/login', secondOwner)).status, 200);
+  const opening = await (await request('/api/opening')).json();
+  assert.equal(opening.effective_on, '2026-11-05');
+  assert.equal(opening.amount, 1250000);
   console.log('V3 Next.js integration passed: routes/assets, setup/login/logout, origin checks, supplier/product/receiving/QC, idempotent DP sale, settlement, invoice, search, service completion, warranty, reports, and cashier permissions.');
 } finally {
   child.kill();

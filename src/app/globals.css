@@ -6,25 +6,33 @@
   --section-fade-duration: 180ms;
   color-scheme: light;
   --background: #f5f7f6; --foreground: #182622;
-  --card: #ffffffb8; --card-foreground: #182622;
+  --card: #ffffffcc; --card-foreground: #182622;
   --popover: #fcfdfc; --popover-foreground: #182622;
   --primary: #047857; --primary-foreground: #ffffff;
   --secondary: #e6eee9; --secondary-foreground: #263e34;
-  --muted: #edf2ef; --muted-foreground: #5e7066;
+  --muted: #e5ede8; --muted-foreground: #43594e;
   --accent: #e1f1e8; --accent-foreground: #065f46;
-  --destructive: #b91c1c; --border: #b8c9be70; --input: #9aafa280; --ring: #059669;
+  --destructive: #b91c1c; --destructive-foreground: #ffffff;
+  --border: #849c8f80; --input: #71897c; --ring: #047857;
+  --control: #ffffffdb;
+  --glass-edge: #ffffffed;
+  --glass-shadow: 0 8px 32px #183e2d0d, inset 0 1px 0 var(--glass-edge);
   --radius: .75rem;
 }
 .dark {
   color-scheme: dark;
   --background: #181818; --foreground: #e6eeea;
-  --card: #272727b8; --card-foreground: #e6eeea;
+  --card: #272727db; --card-foreground: #e6eeea;
   --popover: #272727; --popover-foreground: #e6eeea;
   --primary: #6ee7b7; --primary-foreground: #082e23;
   --secondary: #313131; --secondary-foreground: #e6eeea;
-  --muted: #272727; --muted-foreground: #a5b4ab;
+  --muted: #313131; --muted-foreground: #bdcbc3;
   --accent: #244235; --accent-foreground: #a7f3d0;
-  --destructive: #fca5a5; --border: #ffffff20; --input: #ffffff30; --ring: #6ee7b7;
+  --destructive: #fca5a5; --destructive-foreground: #450a0a;
+  --border: #ffffff30; --input: #8b9b92; --ring: #6ee7b7;
+  --control: #181818d9;
+  --glass-edge: #ffffff26;
+  --glass-shadow: 0 8px 32px #00000026, inset 0 1px 0 var(--glass-edge);
 }
 :root[data-palette="paper"] { --background: #f7f6f3; }
 :root[data-palette="sage"] { --background: #f0f5ef; }
@@ -49,7 +57,7 @@
   --color-secondary: var(--secondary); --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent); --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive); --color-border: var(--border); --color-input: var(--input); --color-ring: var(--ring);
+  --color-destructive: var(--destructive); --color-destructive-foreground: var(--destructive-foreground); --color-border: var(--border); --color-input: var(--input); --color-ring: var(--ring);
   --radius-sm: calc(var(--radius) - 4px); --radius-md: calc(var(--radius) - 2px); --radius-lg: var(--radius); --radius-xl: calc(var(--radius) + 4px);
   --font-sans: var(--font-geist-sans), "Segoe UI", sans-serif;
 }
@@ -57,7 +65,22 @@
   * { @apply border-border; }
   /* Reserve the viewport gutter across short pages and Radix scroll locks. */
   html { scrollbar-gutter: stable; }
-  body { @apply bg-background text-foreground font-sans antialiased; }
+  body { @apply bg-background text-foreground font-sans antialiased; isolation: isolate; }
+  /* Static color fields give the frost depth without moving behind text. */
+  body::before, body::after {
+    content: "";
+    position: fixed;
+    z-index: -1;
+    pointer-events: none;
+    width: min(48rem, 85vw);
+    height: min(48rem, 85vw);
+    border-radius: 50%;
+    background: var(--primary);
+    opacity: .12;
+    filter: blur(80px);
+  }
+  body::before { top: -24rem; left: -12rem; }
+  body::after { right: -16rem; bottom: -24rem; opacity: .09; }
   h1,h2,h3 { text-wrap: balance; overflow-wrap: anywhere; }
   p { text-wrap: pretty; }
   button,a,input,select,textarea { -webkit-tap-highlight-color: transparent; }
@@ -69,7 +92,12 @@
      Keep its overflow lock so the page stays still behind modal content. */
   html body[data-scroll-locked] { margin-right: 0 !important; }
 }
-@utility glass { @apply border border-border bg-card shadow-sm backdrop-blur-xl; }
+@utility glass {
+  @apply border border-border bg-card;
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  backdrop-filter: blur(24px) saturate(135%);
+}
 @utility heading-4 { @apply text-3xl font-semibold tracking-tight; }
 @utility heading-6 { @apply text-xl font-semibold tracking-tight; }
 @utility body-6 { @apply text-sm font-normal leading-5; }
@@ -79,4 +107,94 @@
 .workspace-scroll { scrollbar-gutter: stable; }
 #main-content { width:100%; }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
-@supports not (backdrop-filter: blur(1px)) { .glass { background: var(--popover); } }
+/* Keep form boundaries and text independent of the content behind the glass. */
+[data-slot="input"], [data-slot="select-trigger"], textarea {
+  background: var(--control);
+  color: var(--foreground);
+  border-color: var(--input);
+}
+[data-slot="button"][data-variant="outline"] {
+  background: var(--control);
+  border-color: var(--input);
+}
+[data-slot="button"][data-variant="outline"]:hover { background: var(--accent); }
+[data-slot="dialog-content"], [data-slot="dropdown-menu-content"], [data-slot="select-content"] {
+  background: color-mix(in srgb, var(--popover) 96%, transparent);
+  box-shadow: var(--glass-shadow), 0 24px 64px #00000026;
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass, [data-slot="dialog-content"], [data-slot="dropdown-menu-content"], [data-slot="select-content"] { background: var(--popover); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  body::before, body::after { display: none; }
+  .glass, [data-slot="dialog-content"], [data-slot="dropdown-menu-content"], [data-slot="select-content"] { background: var(--popover); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+
+/* Dashboard loading is static, including for users with motion enabled. */
+.dashboard-loading [data-slot="skeleton"] { animation: none; }
+
+[data-motion="dashboard-detail"] {
+  animation: none;
+}
+[data-motion="dashboard-detail"][data-state="open"] {
+  opacity: 1;
+  transition: opacity 200ms cubic-bezier(.23,1,.32,1);
+}
+[data-slot="dialog-content"][data-motion="dashboard-detail"][data-state="open"] {
+  transform: scale(1);
+  transform-origin: center;
+  transition-property: opacity, transform;
+}
+@starting-style {
+  [data-motion="dashboard-detail"][data-state="open"] { opacity: 0; }
+  [data-slot="dialog-content"][data-motion="dashboard-detail"][data-state="open"] { transform: scale(.97); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-motion="dashboard-detail"][data-state="open"] { transition-duration: 200ms !important; }
+  [data-slot="dialog-content"][data-motion="dashboard-detail"][data-state="open"] {
+    transform: none;
+    transition-property: opacity;
+  }
+  @starting-style {
+    [data-slot="dialog-content"][data-motion="dashboard-detail"][data-state="open"] { transform: none; }
+  }
+}
+
+.dashboard-hover-surface {
+  position: relative;
+  isolation: isolate;
+}
+.dashboard-hover-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--accent);
+  opacity: 0;
+}
+[data-slot="button"].dashboard-hover-surface:hover { background: transparent; }
+[data-slot="button"][data-variant="outline"].dashboard-hover-surface:hover { background: var(--control); }
+[data-slot="button"].dashboard-hover-surface,
+[data-slot="button"].dashboard-hover-primary { transition: none; }
+[data-slot="button"].dashboard-hover-primary:hover { background: var(--primary); }
+.dashboard-hover-primary > svg { opacity: .7; }
+.dashboard-hover-surface:not(:disabled, [aria-disabled="true"]):focus-visible::before,
+.dashboard-hover-primary:not(:disabled, [aria-disabled="true"]):focus-visible > svg { opacity: 1; }
+
+@media (hover: hover) and (pointer: fine) {
+  .dashboard-hover-surface:not(:focus-visible)::before,
+  .dashboard-hover-primary:not(:focus-visible) > svg {
+    transition: opacity 200ms var(--ease-ui);
+  }
+  .dashboard-hover-surface:not(:disabled, [aria-disabled="true"]):hover::before,
+  .dashboard-hover-primary:not(:disabled, [aria-disabled="true"]):hover > svg { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dashboard-hover-surface::before,
+    .dashboard-hover-primary > svg { transition-duration: 0ms !important; }
+  }
+}

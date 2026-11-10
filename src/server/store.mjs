@@ -240,16 +240,117 @@ function reportYears(storeId, selectedYear) {
   return [...new Set([...years, selectedYear, current])].sort((a, b) => b - a);
 }
 const esc = value => String(value ?? '').replace(/[&<>"']/g, x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
-function documentHtml(u, type, id) {
+function invoiceHtml(row, invoice, preview) {
+  const title = invoice.kind || 'Invoice';
+  const description = invoice.model || invoice.kind || (row.source_type === 'service' ? 'Servis pelanggan' : 'Penjualan unit');
+  const hasDiscount = invoice.price != null && invoice.discount > 0;
+  const issuedOn = row.issued_at.slice(0, 10);
+  const itemDetails = [invoice.unit, invoice.specs].filter(Boolean).map(value => `<span>${esc(value)}</span>`).join('');
+  const fields = [
+    ['No. transaksi', invoice.source],
+    ['Tanggal transaksi', invoice.date],
+    ['Kanal penjualan', invoice.channel],
+    ['Invoice asal', invoice.original],
+  ].filter(([, value]) => value).map(([label, value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join('');
+  return `<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${esc(title)} ${esc(row.number)}</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#f4f5f5;color:#172420;font:14px/1.45 system-ui,sans-serif}
+    main{width:100%;max-width:148mm;min-height:210mm;margin:24px auto 0;padding:clamp(16px,7vw,10mm);background:#fff;overflow-wrap:anywhere}
+    body.preview{background:#fff}
+    body.preview main{min-height:0;aspect-ratio:148/210;margin:0 auto}
+    header{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start;padding:16px 0;border-top:4px solid #08785e;border-bottom:1px solid #b6c7c0;break-inside:avoid}
+    header strong{display:block;font-size:16px;margin-top:4px}
+    .heading{text-align:right}
+    h1{font-size:clamp(22px,6vw,32px);line-height:1.05;letter-spacing:-.035em;margin:0 0 4px}
+    .label{display:block;color:#49625a;font-size:11px;font-weight:700;letter-spacing:.075em;text-transform:uppercase}
+    .number,.amount{font-variant-numeric:tabular-nums}
+    .metadata{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin:24px 0;break-inside:avoid}
+    .metadata strong{display:block;margin-top:4px}
+    dl{margin:0}
+    .references div+div{margin-top:8px}
+    dd{margin:2px 0 0}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}
+    tr{break-inside:avoid}
+    th,td{padding:10px 8px;vertical-align:top;text-align:left}
+    th{background:#eef5f1;border-block:1px solid #b6c7c0}
+    th.label{display:table-cell}
+    th:last-child{width:38%}
+    td{border-bottom:1px solid #b6c7c0}
+    .item-details{color:#49625a;font-size:12px}
+    .item-details span{display:block;margin-top:2px}
+    .amount{text-align:right}
+    .totals{margin:16px 0 0 auto;max-width:16rem;break-inside:avoid}
+    .totals div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:4px 8px}
+    .totals dd{margin:0;font-weight:600;text-align:right}
+    .totals .grand-total{margin-top:8px;padding:10px 8px;border-block:1px solid #08785e;background:#eef5f1}
+    .grand-total dt{font-weight:700}
+    .grand-total dd{font-size:16px}
+    footer{margin-top:24px;padding-top:12px;border-top:1px solid #b6c7c0;color:#49625a;font-size:12px;break-inside:avoid}
+    footer p{margin:0}
+    footer p+p{margin-top:4px}
+    .controls{max-width:148mm;margin:12px auto 24px;padding:0 16px}
+    button{font:inherit;padding:8px 12px}
+    @page{size:A5 portrait;margin:10mm}
+    @media print{
+      body{background:#fff;font-size:10pt}
+      main,body.preview main{width:auto;max-width:none;min-height:0;aspect-ratio:auto;margin:0;padding:0}
+      .controls{display:none}
+    }
+    @media screen and (max-width:360px){
+      body{font-size:12px}
+      .grand-total dd{font-size:14px}
+    }
+  </style>
+</head>
+<body${preview ? ' class="preview"' : ''}><main id="invoice-sheet">
+  <header>
+    <div><span class="label">Diterbitkan oleh</span><strong>${esc(invoice.store)}</strong></div>
+    <div class="heading"><h1>${esc(title)}</h1><div class="number">${esc(row.number)}</div></div>
+  </header>
+  <section class="metadata" aria-label="Informasi transaksi">
+    <div><span class="label">Pelanggan</span><strong>${esc(invoice.person || '—')}</strong></div>
+    <dl class="references">${fields}</dl>
+  </section>
+  <table aria-label="Rincian invoice">
+    <thead><tr><th scope="col" class="label">Deskripsi</th><th scope="col" class="label amount">Jumlah</th></tr></thead>
+    <tbody><tr>
+      <td><strong>${esc(description)}</strong><div class="item-details">${itemDetails}</div></td>
+      <td class="amount">${formatMoney(hasDiscount ? invoice.price : invoice.amount)}</td>
+    </tr></tbody>
+  </table>
+  <dl class="totals">
+    ${hasDiscount ? `<div><dt>Subtotal</dt><dd>${formatMoney(invoice.price)}</dd></div>
+    <div><dt>Diskon</dt><dd>−${formatMoney(invoice.discount)}</dd></div>` : ''}
+    <div class="grand-total"><dt>${row.source_type === 'customer_return' ? 'Total kredit' : 'Total tagihan'}</dt><dd class="number">${formatMoney(invoice.amount)}</dd></div>
+  </dl>
+  <footer>
+    ${invoice.model ? `<p><strong>Garansi</strong> · ${esc(invoice.endsOn || 'Tanpa garansi')}</p>` : ''}
+    <p>Tanggal terbit · ${esc(issuedOn)}</p>
+  </footer>
+</main>${preview ? '' : '<div class="controls"><button onclick="print()">Cetak / Simpan PDF</button></div>'}
+</body>
+</html>`;
+}
+
+
+function documentHtml(u, type, id, preview = false) {
   needRole(u,['owner','cashier','service']);
   const table = type==='payment'?'payment_documents':'invoices';
   const row = one(`SELECT * FROM ${table} WHERE id=? AND store_id=?`,id,u.store_id); if(!row) throw bad('Dokumen tidak ditemukan.',404);
   const source = type==='payment' ? one('SELECT p.source_type FROM payments p JOIN payment_documents d ON d.payment_id=p.id WHERE d.id=?',id)?.source_type : row.source_type;
   if (u.role==='cashier' && !['sale','customer_return','customer_refund'].includes(source)) throw bad('Akses tidak diizinkan.',403);
   if (u.role==='service' && source!=='service') throw bad('Akses tidak diizinkan.',403);
-  const d=JSON.parse(row.snapshot), title=type==='payment'?d.kind:(d.kind||'Invoice');
-  const entries=type==='payment'?[['Pelanggan / pihak',d.person],['Transaksi',d.source],['Invoice',d.invoice||'Uang muka'],['Tanggal bayar',d.paidOn],['Metode',d.method],['Referensi',d.reference||'—'],['Pembayaran ini',d.amount],['Total dibayar',d.cumulative],['Sisa',d.remaining],['Petugas',d.issuer]]:[['Pelanggan',d.person],['Transaksi',d.source],['Tanggal',d.date],...(d.model?[['Unit',d.unit],['Model',d.model],['Spesifikasi',d.specs],['Channel',d.channel],['Garansi',d.endsOn||'Tanpa garansi']]:[]),...(d.original?[['Invoice asal',d.original]]:[]),['Total tagihan',d.amount]];
-  const format=(value,label)=>['Pembayaran ini','Total dibayar','Sisa','Total tagihan'].includes(label)?formatMoney(value):esc(value);
+  const d = JSON.parse(row.snapshot);
+  if (type !== 'payment') return invoiceHtml(row, d, preview);
+  const title = d.kind;
+  const entries = [['Pelanggan / pihak',d.person],['Transaksi',d.source],['Invoice',d.invoice||'Uang muka'],['Tanggal bayar',d.paidOn],['Metode',d.method],['Referensi',d.reference||'—'],['Pembayaran ini',d.amount],['Total dibayar',d.cumulative],['Sisa',d.remaining],['Petugas',d.issuer]];
+  const format = (value, label) => ['Pembayaran ini','Total dibayar','Sisa'].includes(label) ? formatMoney(value) : esc(value);
   return `<!doctype html><html lang="id"><head><meta charset="utf-8"><title>${esc(title)} ${esc(row.number)}</title><style>body{font:16px/1.5 Segoe UI,sans-serif;max-width:720px;margin:40px auto;color:#111}header{border-bottom:2px solid #111;padding-bottom:18px}h1{font-size:28px}table{width:100%;border-collapse:collapse;margin-top:28px}td{padding:10px;border-bottom:1px solid #ddd}td:last-child{text-align:right;font-weight:600}button{padding:10px 16px;margin-top:30px}@media print{button{display:none}body{margin:0}}</style></head><body><header><strong>${esc(d.store)}</strong><h1>${esc(title)}</h1><div>No. ${esc(row.number)}</div></header><table>${entries.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${format(v,k)}</td></tr>`).join('')}</table><p>Dokumen diterbitkan ${esc(row.issued_at.slice(0,10))}.</p><button onclick="print()">Cetak / Simpan PDF</button></body></html>`;
 }
 
@@ -271,8 +372,8 @@ async function api(req,res,url) {
     const username = required(body.username, 'Username').toLowerCase();
     const password = required(body.password, 'Kata sandi');
     if (password.length < 10) throw bad('Kata sandi minimal 10 karakter.');
-    const openingDate = date(firstSetup && body.openingDate || new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()));
-    const openingAmount = firstSetup ? money(body.openingAmount || 0) : 0;
+    const openingDate = date(body.openingDate || new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()));
+    const openingAmount = firstSetup || body.openingDate ? money(body.openingAmount ?? 0) : 0;
     const recoveryCode = tx(() => {
       if (firstSetup && one('SELECT id FROM users LIMIT 1')) throw bad('Toko sudah diatur.', 403);
       if (one('SELECT id FROM users WHERE username=?', username)) throw bad('Username sudah digunakan.', 409);
@@ -407,6 +508,6 @@ async function api(req,res,url) {
 
 export async function handleStoreRequest(req,res) { try { const host=req.headers.host||'localhost'; const url=new URL(req.url,`http://${host}`); if(!['GET','HEAD'].includes(req.method)) { const origin=req.headers.origin; if(origin && (hostingOrigin ? origin !== hostingOrigin.origin : new URL(origin).host !== host)) throw bad('Permintaan lintas situs ditolak.',403); }
     if(url.pathname.startsWith('/api/')) return await api(req,res,url);
-    if(url.pathname==='/document') { const u=needUser(req), content=documentHtml(u,url.searchParams.get('type'),url.searchParams.get('id')); res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}); return res.end(content); }
+    if(url.pathname==='/document') { const u=needUser(req), content=documentHtml(u,url.searchParams.get('type'),url.searchParams.get('id'),url.searchParams.get('preview')==='1'); res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}); return res.end(content); }
     return json(res,404,{error:'Buka aplikasi melalui server Next.js.'});
   } catch(e) { if(e.code==='ENOENT') return json(res,404,{error:'Halaman tidak ditemukan.'}); const duplicate=String(e.message).includes('UNIQUE constraint'); json(res,e.status|| (duplicate?409:500),{error:duplicate?'Kode sudah digunakan.':e.status?e.message:'Terjadi kesalahan server.'}); if(!e.status&&!duplicate) console.error(e); } }

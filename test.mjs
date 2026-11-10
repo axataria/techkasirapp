@@ -7,7 +7,7 @@ import { once } from 'node:events';
 
 const temp = mkdtempSync(join(tmpdir(), 'techkasir-test-'));
 const port = 33821 + Math.floor(Math.random()*1000);
-const server = spawn(process.execPath, ['scripts/api-test-server.mjs'], { cwd: new URL('.', import.meta.url).pathname.replace(/^\/(\w:)/,'$1'), env: { ...process.env, TECHKASIR_DATA_DIR: temp, PORT: String(port) }, stdio: ['ignore','pipe','pipe'] });
+const server = spawn(process.execPath, ['scripts/api-test-server.mjs'], { cwd: import.meta.dirname, env: { ...process.env, TECHKASIR_DATA_DIR: temp, PORT: String(port) }, stdio: ['ignore','pipe','pipe'] });
 let stderr = '';
 server.stderr.on('data', x => stderr += x);
 const base = `http://127.0.0.1:${port}`;

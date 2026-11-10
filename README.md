@@ -21,7 +21,7 @@ npm.cmd run dev
 
 Open `http://127.0.0.1:3100`. On the first visit, create the owner account and enter the opening cash balance. The app stores data in `data/store.db`. The server binds to localhost by default.
 
-Untuk akun pemilik baru, pilih **Buat toko baru** di halaman login. Toko baru dimulai dengan saldo Rp 0 dan data operasional kosong. Akun staf yang dibuat lewat **Pengaturan → Staf dan akses** memakai data toko tempatnya ditambahkan. Saat pertama kali memuat skema pemisahan kode per toko, server membuat cadangan `data/before-store-isolation-*.db` jika sudah ada toko.
+Untuk akun pemilik baru, pilih **Buat toko baru** di halaman login. Isi informasi toko dan akun pemilik, lalu tentukan tanggal serta saldo kas awal dalam rupiah. Toko baru dimulai dengan data operasional kosong. Akun staf yang dibuat lewat **Pengaturan → Staf dan akses** memakai data toko tempatnya ditambahkan. Saat pertama kali memuat skema pemisahan kode per toko, server membuat cadangan `data/before-store-isolation-*.db` jika sudah ada toko.
 
 To run the integration checks:
 
