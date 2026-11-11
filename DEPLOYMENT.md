@@ -1,53 +1,63 @@
-# Firebase App Hosting + Supabase
+# Firebase Spark + Supabase
 
-Firebase project: `techkasirapp-axataria`.
-Public address: `https://kasirlaptoplab.web.app` (Hosting site reserved in this project; target `app`).
+Public site: https://kasirlaptoplab.web.app
+Firebase project: `techkasirapp-axataria`, Hosting target `app`, **Spark**.
 Supabase project: `techkasirapp` (`eumlynnylgdlscpednor`, Mumbai).
+API: https://eumlynnylgdlscpednor.supabase.co/functions/v1/techkasir-api
 
-The production database is PostgreSQL in the private `techkasir` schema. Its dedicated `techkasir_app` login has access to app tables, not database administration. Tables have RLS policies for that backend role and no grants to browser roles. Existing app authentication, store isolation and staff permissions remain on the server. Supabase Auth is not required.
+## Architecture
 
-The custom Node server serves Next.js, `/api/*` and `/document` on one origin. `apphosting.yaml` overrides Firebase's build/start commands and includes the server files. The production build uses Next.js's Webpack builder, verified on the development machine. Local development can continue using SQLite. Cloud startup requires PostgreSQL and an explicit HTTPS app origin, so a missing secret cannot silently create an ephemeral SQLite database.
+Firebase Hosting serves the static Next.js export in `out/`. Application routes are generated at build time; authenticated data is fetched in the browser. Firebase App Hosting, Cloud Run, Cloud Functions, and Blaze billing are not used. `firebase.json` has no backend rewrites. The former `apphosting.yaml` has been removed.
 
-## Complete Firebase setup
+Supabase Edge Functions run the same business handlers used by the local Node app. PostgreSQL stores accounts, sessions, inventory, invoices, payments, and reports in the private `techkasir` schema. The backend switches to the restricted `techkasir_app` role, with RLS and no table grants to browser roles. Database credentials and service-role keys are never embedded in the frontend.
 
-1. Enable the Blaze billing plan for [the Firebase project](https://console.firebase.google.com/project/techkasirapp-axataria/usage/details). Set an appropriate billing alert. No billing account was attached during preparation.
-2. Create an App Hosting backend in the Firebase console, connect `axataria/techkasirapp`, choose `main` and the repository root. Choose an available region near the Supabase database and your users. Use Node 24.
-3. Store the server-only connection string as Cloud Secret Manager secret `techkasir-database-url`. A generated restricted connection is saved locally in the gitignored `.env.cloud.local`; do not paste it into source code or chat. Use the CLI's secret input prompt or stdin. Grant the backend access to the secret.
-4. `apphosting.yaml` sets `TECHKASIR_APP_ORIGIN` to `https://kasirlaptoplab.web.app`. After the backend exists, obtain its actual Cloud Run service ID and region. Create `firebase.json` with Hosting target `app` and a `**` rewrite to that service/region, then deploy `hosting:app`. Do not substitute a guessed Cloud Run service ID. Firebase documents the rewrite configuration at https://firebase.google.com/docs/hosting/cloud-run#direct-hosting-requests-to-container. The Hosting site is reserved, but no app has been deployed there yet.
-5. Deploy the prepared commit and Hosting rewrite. Import the existing local accounts at cutover, then verify `/api/bootstrap`, login, a customer, stock, a payment and a printable invoice through `kasirlaptoplab.web.app`. Verify the records remain after a redeploy.
+The Edge Function validates the app's own random bearer sessions, so its Supabase JWT gateway check is disabled intentionally. Login, registration, bootstrap and recovery are public; other endpoints check an active session, store and staff permissions. Sessions last eight hours, are stored in browser `sessionStorage`, and are revoked on logout/password reset. Login limits are stored in PostgreSQL across function instances. Closing a tab ends its local session. Local Node development retains its HttpOnly cookie sessions.
 
-App Hosting needs Blaze. `minInstances: 0` allows cold starts; `maxInstances: 1` limits the app to one instance for this small installation. These settings do not cap the total bill. Each instance uses a small PostgreSQL connection pool. Writes are serialized through a transaction advisory lock; responses are sent after the request commits.
+Only `https://kasirlaptoplab.web.app` is allowed by browser CORS. Invoice previews and payment documents are fetched with authorization; tokens never appear in document URLs. Shared links require the recipient to sign in. The static frontend sets a Content Security Policy and security headers.
 
-## Existing local data
+## Build and publish
 
-Preparation found the existing local database at `D:\Web%20App%20Dev\techkasirapp-main\data\store.db` (a legacy encoded path). It contains two stores/accounts and no customers, stock, sales or payments. It has not been imported into production yet: import at the final cutover after pausing local writes, so later local changes are included. Do not mistake the absence of `data/store.db` in the repository directory for an empty installation.
-
-If a real `data/store.db` exists, stop writes and retain a backup before importing. Start the current local app once to complete existing SQLite migrations, then stop it. Run:
+Use Node.js 24:
 
 ```powershell
-node --env-file=.env.cloud.local scripts/database/import-sqlite.mjs data/store.db
+npm ci
+npm run package:edge
+npm run build:static
+firebase deploy --only hosting:app
 ```
 
-The importer opens SQLite read-only, requires empty destination tables, preserves primary keys and password hashes, checks every imported row and commits all tables together. It never overwrites a populated cloud database. Keep a database export outside the hosting provider and arrange scheduled backups before relying on the app for daily business.
+The Hosting predeploy hook rebuilds the static export. `NEXT_PUBLIC_TECHKASIR_API_URL` is a public endpoint; the build script defaults it to this project's Edge Function. No private database variables are required to build or deploy Hosting.
 
-For this installation, pass the legacy path above instead of `data/store.db`.
+`npm run package:edge` assembles shared server modules into `supabase/functions/techkasir-api/`. Generated copies are ignored by Git. Deploy the function using the Supabase connector or authenticated CLI, with `deno.json` as its import map and `verify_jwt=false`. The function reads the server-side `SUPABASE_DB_URL` secret and switches to the restricted application role. `TECHKASIR_DATABASE_URL` can override the connection server-side. The static site needs no secret.
+
+Supabase Free has usage limits and may pause projects with low activity. Firebase Spark has Hosting quotas. Neither a paid plan nor a keepalive automation has been enabled.
+
+## Local development and existing data
+
+`npm run dev` runs the complete local app with SQLite. `npm run dev:postgres` uses the gitignored `.env.cloud.local` connection instead. The original SQLite installation was found at `D:\Web%20App%20Dev\techkasirapp-main\data\store.db` (a legacy encoded path), with two accounts and no business transactions. Preserve that source and use the published site for subsequent work after cutover.
+
+For an initial import, pause local writes, retain a consistent backup, then run:
+
+```powershell
+node --env-file=.env.cloud.local scripts/database/import-sqlite.mjs PATH_TO_STORE_DB
+```
+
+The importer opens SQLite read-only, requires empty destination tables, preserves IDs/password hashes, verifies every row and imports all tables in one transaction. It refuses to overwrite a populated destination. This is not ongoing synchronization. Arrange database exports/backups appropriate for daily business use.
 
 ## Verification
 
 ```powershell
 npm test
 npm run typecheck
-npm run build
-npm run test:next
+npm run build:static
 ```
 
-The PostgreSQL workflow suite requires a separately provisioned copy of `scripts/database/schema.sql`, with `techkasir` replaced by a schema named `techkasir_verify_...`. It refuses the production schema and deletes only its own fixtures:
+The optional PostgreSQL suite requires a separate `techkasir_verify_...` schema and refuses production. Hosted Edge workflows also require an isolated schema and temporary verification gate. Checks cover exact currency, store/staff permissions, idempotent payments, receiving, QC, returns, warranty, invoices, CORS and session revocation. Never point fixture tests at production.
 
-```powershell
-$env:TECHKASIR_DATABASE_SCHEMA = 'techkasir_verify_YOUR_SUFFIX'
-node --env-file=.env.cloud.local postgres.test.mjs
-```
+The public Supabase CA is bundled for verified PostgreSQL TLS. `DATABASE_CA_CERT` can supply a replacement CA server-side after a provider rotation.
 
-The Supabase CA certificate is public and bundled for verified TLS. If the provider rotates its CA, update it using the certificate supplied in Supabase Database Settings; `DATABASE_CA_CERT` can override it. Secrets must stay server-only.
+## Release verification, 11 November 2026
 
-Preparation checks passed on 11 November 2026: all 10 local regression groups, TypeScript, the production Webpack build, the Next.js workflow test with an HTTPS app origin, and the core/V2 workflows against Supabase (including restart persistence). An isolated SQLite import also verified every row, exact currency above JavaScript's safe integer range, policy ordering, and refusal to overwrite existing data. The temporary Supabase verification schema was removed afterward. The live Firebase rollout is pending Blaze activation.
+The Spark Hosting release and Supabase Edge Function are deployed. Both original accounts and their password hashes were imported after a consistent SQLite backup was saved under the gitignored `data/backups/` directory. Every imported row was verified.
+
+All 10 local regression groups, TypeScript, the static export, hosted core/V2 workflows, and browser login/invoice/reload/logout checks passed. Supabase security advisors reported no findings. Temporary QA data is isolated in the `QA Spark acceptance dec68e9e` store and `techkasir_verify_spark` schema; deleting those resources is awaiting explicit approval after automatic review blocked the permanent cleanup.

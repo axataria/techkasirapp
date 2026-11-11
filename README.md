@@ -4,7 +4,7 @@ Satu proyek dan satu proses aplikasi. `npm.cmd run dev` menjalankan frontend Nex
 
 Versi aktif: **V3 (3.0.0)**. Panduan operasi, perbaikan fungsional, dan hasil verifikasi tersedia di [V3.md](V3.md).
 
-Deployment cloud menggunakan **Firebase App Hosting + Supabase PostgreSQL**. Konfigurasi, secret, migrasi data SQLite, dan langkah aktivasi tersedia di [DEPLOYMENT.md](DEPLOYMENT.md). SQLite tetap tersedia untuk pengembangan lokal.
+Deployment cloud menggunakan **Firebase Hosting Spark + Supabase Edge Functions dan PostgreSQL**, di **https://kasirlaptoplab.web.app**. Build statis, migrasi SQLite, dan panduan deployment tersedia di [DEPLOYMENT.md](DEPLOYMENT.md). SQLite tetap tersedia untuk pengembangan lokal.
 
 A working local build for a laptop/phone store. V2 follows [PRD-V2.md](PRD-V2.md); see [V2.md](V2.md) for implemented modules, migration, workflows, verification, and MVP limits. The original [PRD.md](PRD.md), [WORKFLOWS.md](WORKFLOWS.md), [ERD.md](ERD.md), and [DESIGN_REVIEW.md](DESIGN_REVIEW.md) remain historical references.
 
@@ -109,7 +109,7 @@ Run `node search.test.mjs` for keyword matching, permission, pagination, and loc
 
 ## Current limits
 
-This is a **local development build**, not a production deployment. It is bound to one computer and uses SQLite. The original Excel import, spare-part stock, customer follow-up notes, scheduled backups, email invitations, automated password recovery, and a downloadable PDF generator are not implemented yet. V2 supports full-unit customer returns/refunds and date-range profit and loss reporting; partial returns and special refund corrections remain outside the MVP. Payment documents can be printed or saved as PDF from the browser. See [V2.md](V2.md) for detailed limits.
+The published app uses Firebase Spark Hosting and Supabase; local development continues to use SQLite. The original Excel import, spare-part stock, customer follow-up notes, scheduled backups, email invitations, and a downloadable PDF generator remain outside the MVP. Email recovery requires provider configuration; saved recovery codes are available. V2 supports full-unit customer returns/refunds and date-range profit and loss reporting; partial returns and special refund corrections remain outside the MVP. Payment documents can be printed or saved as PDF from the browser. See [V2.md](V2.md) for detailed limits.
 
 The service accounting policy follows the PRD's proposed default: the service charge is customer revenue and technician cost is separate. Confirm this with the store owner before using profit figures operationally.
 

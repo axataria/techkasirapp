@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { documentHtml } from "@/lib/api";
 import { DownloadSimpleIcon, PrinterIcon, ShareNetworkIcon } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,16 @@ export function InvoiceDialog({ href, label }: { href: string; label: string }) 
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [message, setMessage] = useState("");
   const [manualLink, setManualLink] = useState("");
+  const [html, setHtml] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    setHtml(null);
+    void documentHtml(`${href}&preview=1`, controller.signal).then(setHtml).catch(error => {
+      if (!controller.signal.aborted) { setState("error"); setMessage(error instanceof Error ? error.message : "Dokumen belum tersedia."); }
+    });
+    return () => controller.abort();
+  }, [open, href]);
 
   function changeOpen(next: boolean) {
     setOpen(next);
@@ -60,11 +71,12 @@ export function InvoiceDialog({ href, label }: { href: string; label: string }) 
             <div className="relative mx-auto max-w-[30rem] border bg-white shadow-sm">
               {state === "loading" && <p role="status" className="absolute inset-x-0 top-4 text-center text-sm text-slate-600">Memuat invoice…</p>}
               {state === "error" && <p role="alert" className="p-4 text-sm text-slate-900">Pratinjau tidak tersedia. <a className="underline" href={href} target="_blank" rel="noopener noreferrer">Buka dokumen</a></p>}
-              {open && <iframe
+              {open && html !== null && <iframe
                 ref={preview}
                 title="Pratinjau invoice A5"
                 tabIndex={-1}
-                src={`${href}&preview=1`}
+                srcDoc={html}
+                sandbox="allow-same-origin allow-modals"
                 className={`block aspect-[148/210] w-full ${state === "error" ? "hidden" : ""}`}
                 onLoad={event => {
                   const document = event.currentTarget.contentDocument;

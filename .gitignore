@@ -6,6 +6,9 @@ data/
 .techkasir-push/
 .next-backup-*/
 firebase-debug.log
+out/
+supabase/functions/techkasir-api/src/
+supabase/functions/techkasir-api/shared/
 node_modules/
 .pnpm-store/
 qa/**/browser-profile/

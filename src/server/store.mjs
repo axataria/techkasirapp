@@ -2,18 +2,21 @@ import { createV2 } from './operations.mjs';
 import { searchRecords } from './search.mjs';
 import { createRecovery } from './recovery.mjs';
 import { scopeStoreIdentifiers } from './store-scoping.mjs';
-import { createDatabase } from './database.mjs';
+import { createDatabase } from '#techkasir-database';
+import { environment } from './environment.mjs';
+import { Buffer } from 'node:buffer';
 import { randomBytes, randomUUID, scryptSync, createHash, timingSafeEqual } from 'node:crypto';
 import { join } from 'node:path';
 import { sumMoney, subtractMoney, multiplyMoney, validateTextFields, formatMoney } from '../../shared/domain.mjs';
 const root = new URL('../../', import.meta.url).pathname.replace(/^\/(\w:)/, '$1');
-const dataDir = process.env.TECHKASIR_DATA_DIR || join(root, 'data');
-const configuredOrigin = process.env.TECHKASIR_APP_ORIGIN || process.env.TECHKASIR_FIREBASE_ORIGIN;
+const dataDir = environment.TECHKASIR_DATA_DIR || join(root, 'data');
+const configuredOrigin = environment.TECHKASIR_APP_ORIGIN || environment.TECHKASIR_FIREBASE_ORIGIN;
 const hostingOrigin = configuredOrigin ? new URL(configuredOrigin) : null;
-if (process.env.K_SERVICE && !hostingOrigin) throw Error('TECHKASIR_APP_ORIGIN is required on Firebase App Hosting.');
+if (environment.K_SERVICE && !hostingOrigin) throw Error('TECHKASIR_APP_ORIGIN is required on Firebase App Hosting.');
 if (hostingOrigin && (hostingOrigin.protocol !== 'https:' || hostingOrigin.href !== hostingOrigin.origin + '/')) {
   throw new Error('TECHKASIR_APP_ORIGIN must be an HTTPS origin.');
 }
+const edgeMode = environment.TECHKASIR_EDGE === 'true';
 const sessionCookieName = hostingOrigin ? '__session' : 'tk_session';
 const db = await createDatabase({ dataDir });
 if (db.dialect === 'postgres' && (await db.one('SELECT version FROM schema_version'))?.version !== 1) {
@@ -77,7 +80,20 @@ const bad = (message, status = 400) => Object.assign(new Error(message), {
   status
 });
 const hash = value => createHash('sha256').update(value).digest('hex');
-const loginFailures = new Map();
+const loginFailures = {
+  async get(key) {
+    const row = await one('SELECT requests, expires_at FROM recovery_limits WHERE scope=?', `login:${key}`);
+    return row ? { count: row.requests, since: row.expires_at - 15 * 60_000 } : undefined;
+  },
+  async set(key, value) {
+    await run('INSERT INTO recovery_limits VALUES(?,?,?) ON CONFLICT(scope) DO UPDATE SET expires_at=excluded.expires_at,requests=excluded.requests', `login:${key}`, value.since + 15 * 60_000, value.count);
+  },
+  async delete(key) { await run('DELETE FROM recovery_limits WHERE scope=?', `login:${key}`); },
+};
+const loginKey = (req, username) => edgeMode ? username : `${req.socket.remoteAddress}:${username}`;
+const sessionToken = req => edgeMode
+  ? /^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization || '')?.[1]
+  : cookie(req, sessionCookieName);
 const passwordHash = value => {
   const salt = randomBytes(16).toString('hex');
   return `${salt}:${scryptSync(value, salt, 64).toString('hex')}`;
@@ -110,7 +126,7 @@ function cookie(req, name) {
   return (req.headers.cookie || '').split(';').map(x => x.trim()).find(x => x.startsWith(name + '='))?.slice(name.length + 1);
 }
 async function userFor(req) {
-  const token = cookie(req, sessionCookieName);
+  const token = sessionToken(req);
   if (!token) return null;
   return (await one('SELECT u.id,u.store_id,u.username,u.name,u.role,u.active,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1', hash(token), now())) || null;
 }
@@ -571,7 +587,7 @@ const recovery = await createRecovery({
   passwordHash,
   verifyPassword,
   audit,
-  clearLoginFailures: (req, username) => loginFailures.delete(`${req.socket.remoteAddress}:${username}`)
+  clearLoginFailures: (req, username) => loginFailures.delete(loginKey(req, username))
 });
 async function api(req, res, url) {
   const method = req.method,
@@ -614,29 +630,30 @@ async function api(req, res, url) {
   if (method === 'POST' && path === '/api/login') {
     const b = await bodyOf(req),
       username = String(b.username || '').trim().toLowerCase(),
-      key = `${req.socket.remoteAddress}:${username}`,
-      previous = loginFailures.get(key),
+      key = loginKey(req, username),
+      previous = await loginFailures.get(key),
       fail = previous && Date.now() - previous.since < 15 * 60_000 ? previous : null;
     if (fail && fail.count >= 5) throw bad('Terlalu banyak percobaan. Coba lagi nanti.', 429);
     const u = await one('SELECT * FROM users WHERE username=? AND active=1', username);
     if (!u || !verifyPassword(String(b.password || ''), u.password_hash)) {
-      loginFailures.set(key, {
+      await loginFailures.set(key, {
         count: (fail?.count || 0) + 1,
         since: fail?.since || Date.now()
       });
       throw bad('Username atau kata sandi salah.', 401);
     }
-    loginFailures.delete(key);
+    await loginFailures.delete(key);
     const token = randomBytes(32).toString('hex');
-    await run('INSERT INTO sessions VALUES(?,?,?,?)', hash(token), u.id, new Date(Date.now() + 604800000).toISOString(), now());
+    await run('DELETE FROM sessions WHERE expires_at<=?', now());
+    await run('INSERT INTO sessions VALUES(?,?,?,?)', hash(token), u.id, new Date(Date.now() + (edgeMode ? 28_800_000 : 604800000)).toISOString(), now());
     return json(res, 200, {
-      ok: true
+      ok: true, ...(edgeMode ? { sessionToken: token } : {})
     }, {
       'Set-Cookie': sessionCookie(req, token)
     });
   }
   if (method === 'POST' && path === '/api/logout') {
-    const token = cookie(req, sessionCookieName);
+    const token = sessionToken(req);
     if (token) await run('DELETE FROM sessions WHERE token_hash=?', hash(token));
     return json(res, 200, {
       ok: true
@@ -683,17 +700,17 @@ async function api(req, res, url) {
       const name = required(body.name, 'Nama lengkap');
       const username = required(body.username, 'Username').toLowerCase();
       const key = `profile:${user.id}`;
-      const previous = loginFailures.get(key);
+      const previous = await loginFailures.get(key);
       const failures = previous && Date.now() - previous.since < 15 * 60_000 ? previous : null;
       if (failures?.count >= 5) throw bad('Terlalu banyak percobaan. Coba lagi nanti.', 429);
       if (typeof body.currentPassword !== 'string' || body.currentPassword.length > 256 || !verifyPassword(body.currentPassword, user.password_hash)) {
-        loginFailures.set(key, {
+        await loginFailures.set(key, {
           count: (failures?.count || 0) + 1,
           since: failures?.since || Date.now()
         });
         throw bad('Kata sandi saat ini salah.', 403);
       }
-      loginFailures.delete(key);
+      await loginFailures.delete(key);
       await tx(async () => {
         if (await one('SELECT id FROM users WHERE username=? AND id<>?', username, user.id)) throw bad('Username sudah digunakan.', 409);
         await run('UPDATE users SET name=?, username=? WHERE id=?', name, username, user.id);

@@ -1,4 +1,4 @@
-import { api, today, money, type Row } from "@/lib/api";
+import { api, today, money, documentHtml, type Row } from "@/lib/api";
 import { text, numeric, date, choice, type Field } from "@/components/record-form";
 import { catalogFields, catalogValues, unitFields, unitValues, productTitle, productSpecs } from "@/components/product-fields";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,14 @@ export const qcChecks = ["Identitas", "Fisik", "Layar", "Baterai", "Input", "Por
 export function DocumentLink({ id, type = "payment", label = "Lihat dokumen" }: { id?: string; type?: string; label?: string }) {
   if (!id) return null;
   const href = `/document?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`;
-  return type === "invoice" ? <InvoiceDialog href={href} label={label} /> : <Button asChild variant="outline" size="sm"><a href={href} target="_blank" rel="noopener noreferrer">{label}</a></Button>;
+  return type === "invoice" ? <InvoiceDialog href={href} label={label} /> : <Button variant="outline" size="sm" onClick={() => {
+    const tab = window.open("", "_blank");
+    if (!tab) return;
+    tab.opener = null;
+    tab.document.body.textContent = "Memuat dokumen…";
+    void documentHtml(href).then(html => { if (!tab.closed) { tab.document.open(); tab.document.write(html); tab.document.close(); } })
+      .catch(error => { if (!tab.closed) tab.document.body.textContent = error instanceof Error ? error.message : "Dokumen belum tersedia."; });
+  }}>{label}</Button>;
 }
 export function Details({ row, labels }: { row: Row; labels?: Record<string, string> }) { return <dl className="grid gap-4 sm:grid-cols-2">{Object.entries(row).filter(([, v]) => v != null && typeof v !== "object").map(([key, value]) => <div key={key} className="min-w-0"><dt className="caption-2">{labels?.[key] || key.replaceAll("_", " ")}</dt><dd className="mt-1 break-words text-sm">{String(value ?? "—")}</dd></div>)}</dl>; }
 const catalogDetailLabels = { brand: "Merek", platform: "Platform", manufacturerCode: "Kode model pabrikan", storageGB: "Penyimpanan (GB)", ramGB: "RAM (GB)", color: "Warna", networkSupport: "Dukungan jaringan", esim: "eSIM", storageType: "Jenis penyimpanan", processor: "Prosesor", gpu: "GPU", screenInches: "Ukuran layar (inci)", resolution: "Resolusi layar" };

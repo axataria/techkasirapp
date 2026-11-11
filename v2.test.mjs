@@ -6,11 +6,13 @@ import { once } from 'node:events';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 
-const temp=mkdtempSync(join(tmpdir(),'techkasir-v2-')),port=35000+Math.floor(Math.random()*1000),base=`http://127.0.0.1:${port}`;
+const remote=process.env.TECHKASIR_TEST_BASE;
+if(remote&&!process.env.EDGE_VERIFY_KEY)throw Error('Remote workflow tests require the isolated verification gate');
+const temp=mkdtempSync(join(tmpdir(),'techkasir-v2-')),port=35000+Math.floor(Math.random()*1000),base=remote||`http://127.0.0.1:${port}`;
 let server,cookie='',stderr='';
-async function start(){server=spawn(process.execPath,['scripts/api-test-server.mjs'],{env:{...process.env,TECHKASIR_DATA_DIR:temp,PORT:String(port)},stdio:['ignore','pipe','pipe']});server.stderr.on('data',x=>stderr+=x);for(let i=0;i<80;i++){try{await fetch(base+'/api/bootstrap');return;}catch{if(server.exitCode!==null)throw Error(stderr);await new Promise(r=>setTimeout(r,50));}}throw Error('Server timeout '+stderr);}
+async function start(){if(remote)return;server=spawn(process.execPath,['scripts/api-test-server.mjs'],{env:{...process.env,TECHKASIR_DATA_DIR:temp,PORT:String(port)},stdio:['ignore','pipe','pipe']});server.stderr.on('data',x=>stderr+=x);for(let i=0;i<80;i++){try{await fetch(base+'/api/bootstrap');return;}catch{if(server.exitCode!==null)throw Error(stderr);await new Promise(r=>setTimeout(r,50));}}throw Error('Server timeout '+stderr);}
 async function stop(){if(server&&server.exitCode===null){server.kill();await once(server,'exit');}}
-async function req(path,method='GET',body,expected=200){const r=await fetch(base+path,{method,headers:{'Content-Type':'application/json',Cookie:cookie},body:body===undefined?undefined:JSON.stringify(body)});if(r.headers.get('set-cookie'))cookie=r.headers.get('set-cookie').split(';')[0];const value=r.headers.get('content-type')?.includes('application/json')?await r.json():await r.text();assert.equal(r.status,expected,`${method} ${path}: ${JSON.stringify(value)}`);return value;}
+async function req(path,method='GET',body,expected=200){const r=await fetch(base+path,{method,headers:{'Content-Type':'application/json',...(remote?{Origin:'https://kasirlaptoplab.web.app','x-techkasir-verify':process.env.EDGE_VERIFY_KEY,...(cookie?{Authorization:`Bearer ${cookie}`}:{})}:{Cookie:cookie})},body:body===undefined?undefined:JSON.stringify(body)});if(!remote&&r.headers.get('set-cookie'))cookie=r.headers.get('set-cookie').split(';')[0];const value=r.headers.get('content-type')?.includes('application/json')?await r.json():await r.text();if(remote&&path==='/api/login'&&value.sessionToken)cookie=value.sessionToken;assert.equal(r.status,expected,`${method} ${path}: ${JSON.stringify(value)}`);return value;}
 const post=(p,b,status=201)=>req(p,'POST',b,status);
 const checklist=Object.fromEntries(['Identitas','Fisik','Layar','Baterai','Input','Port','Konektivitas','Audio/kamera','Aksesori','Fungsi utama'].map(k=>[k,'Lulus']));
 try{

@@ -1,4 +1,6 @@
 import { createHash, createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
+import { environment } from './environment.mjs';
+import { Buffer } from 'node:buffer';
 const lifetime = 10 * 60_000;
 const cooldown = 60_000;
 const invalidCode = 'Kode salah atau kedaluwarsa. Minta kode baru jika diperlukan.';
@@ -37,7 +39,7 @@ export async function createRecovery({
     RESEND_API_KEY: apiKey,
     TECHKASIR_RECOVERY_FROM: from,
     TECHKASIR_RECOVERY_SECRET: secret
-  } = process.env;
+  } = environment;
   const enabled = Boolean(apiKey && from && secret?.length >= 32);
   function emailAddress(value) {
     const email = typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -173,7 +175,7 @@ export async function createRecovery({
           recoveryCode: await changePassword(user, password)
         };
       });
-      clearLoginFailures(req, result.username);
+      await clearLoginFailures(req, result.username);
       json(res, 200, result);
       return true;
     }
@@ -218,7 +220,7 @@ export async function createRecovery({
       await accept(user, 'reset', email, body.code, async () => {
         recoveryCode = await changePassword(user, password);
       });
-      clearLoginFailures(req, user.username);
+      await clearLoginFailures(req, user.username);
       json(res, 200, {
         ok: true,
         username: user.username,

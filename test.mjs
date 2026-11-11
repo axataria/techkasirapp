@@ -7,20 +7,24 @@ import { once } from 'node:events';
 
 const temp = mkdtempSync(join(tmpdir(), 'techkasir-test-'));
 const port = 33821 + Math.floor(Math.random()*1000);
-const server = spawn(process.execPath, ['scripts/api-test-server.mjs'], { cwd: import.meta.dirname, env: { ...process.env, TECHKASIR_DATA_DIR: temp, PORT: String(port) }, stdio: ['ignore','pipe','pipe'] });
+const remote = process.env.TECHKASIR_TEST_BASE;
+if (remote && !process.env.EDGE_VERIFY_KEY) throw Error('Remote workflow tests require the isolated verification gate');
+const server = remote ? null : spawn(process.execPath, ['scripts/api-test-server.mjs'], { cwd: import.meta.dirname, env: { ...process.env, TECHKASIR_DATA_DIR: temp, PORT: String(port) }, stdio: ['ignore','pipe','pipe'] });
 let stderr = '';
-server.stderr.on('data', x => stderr += x);
-const base = `http://127.0.0.1:${port}`;
+server?.stderr.on('data', x => stderr += x);
+const base = remote || `http://127.0.0.1:${port}`;
 let cookie = '';
 async function request(path, method='GET', body, expected=200) {
-  const r = await fetch(base+path,{method,headers:{'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:body===undefined?undefined:JSON.stringify(body)});
-  if(r.headers.get('set-cookie')) cookie=r.headers.get('set-cookie').split(';')[0];
+  const r = await fetch(base+path,{method,headers:{'Content-Type':'application/json',...(remote?{Origin:'https://kasirlaptoplab.web.app','x-techkasir-verify':process.env.EDGE_VERIFY_KEY,...(cookie?{Authorization:`Bearer ${cookie}`}:{})}:(cookie?{Cookie:cookie}:{}))},body:body===undefined?undefined:JSON.stringify(body)});
+  if(!remote && r.headers.get('set-cookie')) cookie=r.headers.get('set-cookie').split(';')[0];
   const value=(r.headers.get('content-type')||'').includes('application/json')?await r.json():await r.text();
+  if (remote && path === '/api/login' && value.sessionToken) cookie = value.sessionToken;
+  if (remote && path === '/api/logout') cookie = '';
   assert.equal(r.status,expected,`${method} ${path}: ${JSON.stringify(value)}`);
   return value;
 }
 try {
-  for(let i=0;i<60;i++){try{await fetch(base+'/api/bootstrap');break;}catch{await new Promise(r=>setTimeout(r,100));}}
+  if (!remote) for(let i=0;i<60;i++){try{await fetch(base+'/api/bootstrap');break;}catch{await new Promise(r=>setTimeout(r,100));}}
   await request('/', 'GET', undefined, 404);
   await request('/style.css', 'GET', undefined, 404);
   assert.equal((await request('/api/bootstrap')).needsSetup,true);
@@ -102,8 +106,8 @@ try {
   assert.equal((await request('/api/search','POST',{query:'Kasir Uji'})).total,0);
   console.log('Integration checks passed: login, role access, unit sale, DP, service advance, customer balance, payment documents, cash and monthly reports.');
 } finally {
-  server.kill();
-  if(server.exitCode===null) await once(server,'exit');
+  server?.kill();
+  if(server?.exitCode===null) await once(server,'exit');
   if(stderr) process.stderr.write(stderr);
   if(resolve(temp).startsWith(resolve(tmpdir()) + '\\')) { try { rmSync(temp,{recursive:true,force:true}); } catch(e) { console.warn('Temporary test data kept:',temp,e.code); } }
 }

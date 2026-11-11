@@ -46,6 +46,11 @@ export function Workspace({ children }: { children: ReactNode }) {
   const [registering, setRegistering] = useState(false);
   const [storeDetails, setStoreDetails] = useState<Row | null>(null);
   const [registered, setRegistered] = useState(false);
+  useEffect(() => {
+    const expired = () => { generation.current++; setMe(null); setData({}); setDialog(null); setLoadedPage(null); };
+    window.addEventListener("techkasir:session-expired", expired);
+    return () => window.removeEventListener("techkasir:session-expired", expired);
+  }, []);
   const [loadedPage, setLoadedPage] = useState<string | null>(null);
   const scrollArea = useRef<HTMLDivElement>(null), contentArea = useRef<HTMLElement>(null);
   const pointerNavigation = useRef(false);
@@ -169,6 +174,8 @@ export function Workspace({ children }: { children: ReactNode }) {
         setData({});
         setError("");
         setMe(user);
+        const documentQuery = new URLSearchParams(window.location.search).get("document");
+        if (documentQuery) { router.push(`/document?${documentQuery}`); return; }
         navigate(user.role === "owner" ? "dashboard" : user.role === "service" ? "orders" : "sales");
       },
     };

@@ -1,0 +1,9 @@
+project_id = "techkasirapp"
+
+[functions.techkasir-api]
+enabled = true
+# The shared application validates its own hashed, expiring session tokens.
+# Login, account recovery and bootstrap must be reachable before signing in.
+verify_jwt = false
+entrypoint = "./functions/techkasir-api/index.ts"
+import_map = "./functions/techkasir-api/deno.json"
