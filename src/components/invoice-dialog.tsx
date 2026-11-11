@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { DownloadSimpleIcon, PrinterIcon, ShareNetworkIcon } from "@phosphor-icons/react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -49,7 +50,7 @@ export function InvoiceDialog({ href, label }: { href: string; label: string }) 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger asChild><Button variant="outline" size="sm">{label}</Button></DialogTrigger>
-      <DialogContent className="gap-0 overflow-x-hidden p-0 sm:max-w-4xl motion-reduce:animate-none">
+      <DialogContent className="gap-0 overflow-x-hidden p-0 sm:max-w-4xl">
         <header className="grid gap-2 border-b px-6 py-4 pr-12">
           <DialogTitle>Detail invoice</DialogTitle>
           <DialogDescription>Pratinjau dokumen dalam format A5 potret.</DialogDescription>
@@ -83,7 +84,7 @@ export function InvoiceDialog({ href, label }: { href: string; label: string }) 
             <Button className="justify-start" variant="outline" disabled={state !== "ready"} onClick={share}><ShareNetworkIcon /> Bagikan tautan</Button>
             <p className="text-xs text-muted-foreground">Untuk menyimpan PDF, pilih “Simpan sebagai PDF” di dialog cetak. Tautan hanya dapat dibuka oleh pengguna yang memiliki akses.</p>
             <p role="status" className={message ? "text-sm" : "sr-only"}>{message}</p>
-            {manualLink && <input aria-label="Salin tautan invoice" className="w-full rounded-md border px-3 py-2 text-sm" readOnly value={manualLink} onFocus={event => event.currentTarget.select()} />}
+            {manualLink && <Input aria-label="Salin tautan invoice" readOnly value={manualLink} onFocus={event => event.currentTarget.select()} />}
           </section>
         </div>
       </DialogContent>

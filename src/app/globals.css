@@ -1,12 +1,17 @@
 @import "tailwindcss";
 @custom-variant dark (&:is(.dark *));
+@custom-variant hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover { @slot; }
+  }
+}
 
 :root {
   --ease-ui: cubic-bezier(.22,1,.36,1);
   --section-fade-duration: 180ms;
   color-scheme: light;
   --background: #f5f7f6; --foreground: #182622;
-  --card: #ffffffcc; --card-foreground: #182622;
+  --card: #ffffffbd; --card-foreground: #182622;
   --popover: #fcfdfc; --popover-foreground: #182622;
   --primary: #047857; --primary-foreground: #ffffff;
   --secondary: #e6eee9; --secondary-foreground: #263e34;
@@ -14,15 +19,17 @@
   --accent: #e1f1e8; --accent-foreground: #065f46;
   --destructive: #b91c1c; --destructive-foreground: #ffffff;
   --border: #849c8f80; --input: #71897c; --ring: #047857;
-  --control: #ffffffdb;
+  --control: #ffffffe8;
+  --inset: #eff7f2bf;
   --glass-edge: #ffffffed;
-  --glass-shadow: 0 8px 32px #183e2d0d, inset 0 1px 0 var(--glass-edge);
+  --glass-shadow: 0 10px 32px #183e2d12, inset 0 1px 0 var(--glass-edge);
+  --glass-overlay: 0 24px 64px #142e2433;
   --radius: .75rem;
 }
 .dark {
   color-scheme: dark;
   --background: #181818; --foreground: #e6eeea;
-  --card: #272727db; --card-foreground: #e6eeea;
+  --card: #272727d1; --card-foreground: #e6eeea;
   --popover: #272727; --popover-foreground: #e6eeea;
   --primary: #6ee7b7; --primary-foreground: #082e23;
   --secondary: #313131; --secondary-foreground: #e6eeea;
@@ -31,8 +38,10 @@
   --destructive: #fca5a5; --destructive-foreground: #450a0a;
   --border: #ffffff30; --input: #8b9b92; --ring: #6ee7b7;
   --control: #181818d9;
+  --inset: #1c211ed6;
   --glass-edge: #ffffff26;
   --glass-shadow: 0 8px 32px #00000026, inset 0 1px 0 var(--glass-edge);
+  --glass-overlay: 0 24px 64px #00000066;
 }
 :root[data-palette="paper"] { --background: #f7f6f3; }
 :root[data-palette="sage"] { --background: #f0f5ef; }
@@ -58,34 +67,60 @@
   --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent); --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive); --color-destructive-foreground: var(--destructive-foreground); --color-border: var(--border); --color-input: var(--input); --color-ring: var(--ring);
+  --color-control: var(--control); --color-inset: var(--inset);
   --radius-sm: calc(var(--radius) - 4px); --radius-md: calc(var(--radius) - 2px); --radius-lg: var(--radius); --radius-xl: calc(var(--radius) + 4px);
   --font-sans: var(--font-geist-sans), "Segoe UI", sans-serif;
 }
 @layer base {
   * { @apply border-border; }
   /* Reserve the viewport gutter across short pages and Radix scroll locks. */
-  html { scrollbar-gutter: stable; }
+  html { scrollbar-gutter: stable; -webkit-text-size-adjust: 100%; overscroll-behavior: none; }
   body { @apply bg-background text-foreground font-sans antialiased; isolation: isolate; }
-  /* Static color fields give the frost depth without moving behind text. */
+  body { overscroll-behavior: none; }
+  /* Move the gradient as one layer and keep the dither fixed to the viewport. */
   body::before, body::after {
     content: "";
     position: fixed;
     z-index: -1;
     pointer-events: none;
-    width: min(48rem, 85vw);
-    height: min(48rem, 85vw);
-    border-radius: 50%;
-    background: var(--primary);
-    opacity: .12;
-    filter: blur(80px);
   }
-  body::before { top: -24rem; left: -12rem; }
-  body::after { right: -16rem; bottom: -24rem; opacity: .09; }
+  body::before {
+    inset: -14%;
+    background:
+      radial-gradient(ellipse at 22% 24%, color-mix(in srgb, var(--primary) 28%, transparent), transparent 54%),
+      radial-gradient(ellipse at 78% 72%, color-mix(in srgb, var(--primary) 17%, transparent), transparent 52%),
+      radial-gradient(ellipse at 70% 16%, color-mix(in srgb, var(--accent) 60%, transparent), transparent 46%);
+  }
+  body::after {
+    inset: 0;
+    background-image:
+      radial-gradient(circle, currentColor .55px, transparent .85px),
+      radial-gradient(circle, currentColor .4px, transparent .75px);
+    background-size: 4px 4px;
+    background-position: 0 0, 2px 2px;
+    opacity: .09;
+  }
   h1,h2,h3 { text-wrap: balance; overflow-wrap: anywhere; }
   p { text-wrap: pretty; }
   button,a,input,select,textarea { -webkit-tap-highlight-color: transparent; }
+  button, a, [role="button"], summary { touch-action: manipulation; }
+  [data-slot="button"]:not([data-variant="plain"]), nav a, [role="checkbox"], [role="menuitem"], summary {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  [data-slot="button"]:not(:disabled, [aria-disabled="true"]):active {
+    opacity: .78;
+  }
   button:not(:disabled),[role="button"] { cursor: pointer; }
   :focus-visible { @apply outline-2 outline-offset-4 outline-ring; }
+}
+@keyframes glass-gradient-drift {
+  from { transform: translate3d(-7%, -4%, 0); }
+  to { transform: translate3d(7%, 5%, 0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  body::before { animation: glass-gradient-drift 36s ease-in-out infinite alternate; }
 }
 @supports (scrollbar-gutter: stable) {
   /* The root already reserves the gap; avoid Radix compensating it twice.
@@ -98,6 +133,25 @@
   -webkit-backdrop-filter: blur(24px) saturate(135%);
   backdrop-filter: blur(24px) saturate(135%);
 }
+@utility glass-control {
+  @apply border-input bg-control text-foreground;
+  box-shadow: inset 0 1px 0 var(--glass-edge);
+}
+@utility glass-inset {
+  @apply bg-inset;
+  box-shadow: inset 0 1px 0 var(--glass-edge);
+}
+@utility glass-popover {
+  @apply bg-popover;
+  box-shadow: var(--glass-shadow), var(--glass-overlay);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-popover {
+    background: color-mix(in srgb, var(--popover) 93%, transparent);
+    -webkit-backdrop-filter: blur(24px) saturate(130%);
+    backdrop-filter: blur(24px) saturate(130%);
+  }
+}
 @utility heading-4 { @apply text-3xl font-semibold tracking-tight; }
 @utility heading-6 { @apply text-xl font-semibold tracking-tight; }
 @utility body-6 { @apply text-sm font-normal leading-5; }
@@ -106,34 +160,99 @@
 @utility money { @apply tabular-nums tracking-tight; }
 .workspace-scroll { scrollbar-gutter: stable; }
 #main-content { width:100%; }
+/* Keep keyboard focus and press feedback immediate across utility variants. */
+[data-slot="button"]:active,
+[data-slot="button"]:focus-visible { transition: none; }
+
+/* Keep the app inside notches and home-indicator areas in both orientations. */
+.workspace-frame {
+  padding-top: max(1rem, env(safe-area-inset-top, 0px));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+}
+@media (max-width: 1023px) {
+  .workspace-frame { padding-left: max(1rem, env(safe-area-inset-left, 0px)); }
+}
+.desktop-sidebar {
+  top: max(1rem, env(safe-area-inset-top, 0px));
+  bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  left: max(1rem, env(safe-area-inset-left, 0px));
+}
+[data-slot="dialog-content"], [data-slot="select-content"], [data-slot="dropdown-menu-content"] {
+  overscroll-behavior: contain;
+}
+[data-slot="dialog-content"] {
+  top: calc((100dvh + env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) / 2);
+  max-height: min(88dvh, calc(100dvh - 2rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+  width: calc(100% - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+}
+[data-slot="dialog-content"].mobile-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  top: max(1rem, env(safe-area-inset-top, 0px));
+  bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  left: max(1rem, env(safe-area-inset-left, 0px));
+  width: 20rem;
+  max-width: calc(100% - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  max-height: none;
+  padding: 1rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  transform: none;
+}
+.mobile-navigation > nav { flex: none; overflow: visible; }
+.mobile-navigation nav a { scroll-margin-top: 5rem; }
+@media (pointer: coarse) {
+  input, textarea, select { font-size: max(1rem, 16px) !important; }
+  [data-slot="button"][data-size="sm"],
+  [data-slot="button"][data-size="xs"],
+  [data-slot="button"][data-size="icon-sm"],
+  [data-slot="button"][data-size="icon-xs"],
+  [data-slot="dropdown-menu-item"],
+  [data-slot="select-item"] { min-height: max(2.75rem, 44px); }
+}
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
-/* Keep form boundaries and text independent of the content behind the glass. */
-[data-slot="input"], [data-slot="select-trigger"], textarea {
-  background: var(--control);
-  color: var(--foreground);
-  border-color: var(--input);
-}
-[data-slot="button"][data-variant="outline"] {
-  background: var(--control);
-  border-color: var(--input);
-}
-[data-slot="button"][data-variant="outline"]:hover { background: var(--accent); }
-[data-slot="dialog-content"], [data-slot="dropdown-menu-content"], [data-slot="select-content"] {
-  background: color-mix(in srgb, var(--popover) 96%, transparent);
-  box-shadow: var(--glass-shadow), 0 24px 64px #00000026;
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="skeleton"] { animation: none !important; }
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass, [data-slot="dialog-content"], [data-slot="dropdown-menu-content"], [data-slot="select-content"] { background: var(--popover); }
+  .glass { background: var(--popover); }
 }
 @media (prefers-reduced-transparency: reduce) {
   body::before, body::after { display: none; }
-  .glass, [data-slot="dialog-content"], [data-slot="dropdown-menu-content"], [data-slot="select-content"] { background: var(--popover); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  :root { --control: #ffffff; --inset: #eff7f2; }
+  .dark { --control: #181818; --inset: #1c211e; }
+  .glass, .glass-popover { background: var(--popover); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
 
 /* Dashboard loading is static, including for users with motion enabled. */
 .dashboard-loading [data-slot="skeleton"] { animation: none; }
+
+@media (hover: hover) and (pointer: fine) {
+  .dashboard-bento > div > [data-slot="card"] {
+    position: relative;
+  }
+  .dashboard-bento > div > [data-slot="card"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow:
+      inset 0 1px 0 var(--glass-edge),
+      inset 0 0 0 1px color-mix(in srgb, var(--primary) 35%, transparent),
+      inset 0 0 22px color-mix(in srgb, var(--primary) 11%, transparent),
+      0 0 18px color-mix(in srgb, var(--primary) 14%, transparent);
+    opacity: 0;
+    transition: opacity 200ms var(--ease-ui);
+  }
+  .dashboard-bento > div > [data-slot="card"]:hover::after { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dashboard-bento > div > [data-slot="card"]::after { transition: none; }
+  }
+}
 
 [data-motion="dashboard-detail"] {
   animation: none;
