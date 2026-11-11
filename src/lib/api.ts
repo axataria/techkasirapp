@@ -14,7 +14,11 @@ export async function authenticatedFetch(path: string, options: RequestInit = {}
   const headers = new Headers(options.headers);
   const session = endpoint ? token() : null;
   if (session) headers.set("Authorization", `Bearer ${session}`);
-  const response = await fetch(`${endpoint}${path}`, { ...options, headers, credentials: endpoint ? "omit" : "same-origin", cache: "no-store" });
+  const url = endpoint ? new URL(`${endpoint}${path}`) : null;
+  // Database-heavy functions run beside PostgreSQL, avoiding a cross-region
+  // network round trip for every query. The parameter also works with CORS.
+  if (url) url.searchParams.set("forceFunctionRegion", "ap-south-1");
+  const response = await fetch(url?.href || path, { ...options, headers, credentials: endpoint ? "omit" : "same-origin", cache: "no-store" });
   if (endpoint && response.status === 401) {
     saveToken();
     if (session) window.dispatchEvent(new Event("techkasir:session-expired"));

@@ -96,7 +96,7 @@ export function Workspace({ children }: { children: ReactNode }) {
     try { const saved = JSON.parse(localStorage.getItem("techkasir.appearance") || "{}"); const value = saved.mode === "dark"; setDark(value); document.documentElement.classList.toggle("dark", value); applyPalette(saved.palette || "emerald"); setCollapsed(localStorage.getItem("techkasir.sidebarCollapsed") === "true"); } catch {}
     const id = new URLSearchParams(window.location.search).get("record"); setFocus(id);
     let active = true;
-    (async () => { try { const bootstrap = await api("/bootstrap"); if (!active) return; setSetup(bootstrap.needsSetup); if (!bootstrap.needsSetup) { try { const user = await api("/me"); if (active) setMe(user); } catch (err) { if (!(err instanceof ApiError && err.status === 401)) throw err; } } } catch (err) { if (active) setError(err instanceof Error ? err.message : "Server belum tersedia."); } finally { if (active) setBooting(false); } })();
+    (async () => { try { const session = await api("/session"); if (!active) return; setSetup(session.needsSetup); setMe(session.user); } catch (err) { if (active) setError(err instanceof Error ? err.message : "Server belum tersedia."); } finally { if (active) setBooting(false); } })();
     return () => { active = false; };
   }, []);
   const reload = useCallback(async () => {
@@ -105,7 +105,7 @@ export function Workspace({ children }: { children: ReactNode }) {
     const add = (key: string, path = `/${key}`) => reads.set(key, path);
     if (["dashboard", "reports"].includes(page)) { add("summary", "/v2/summary"); add("reports", `/reports?year=${today().slice(0, 4)}`); }
     if (page === "dashboard") {
-      add("dashboard"); add("units"); add("payments"); add("services");
+      add("dashboard"); add("payments"); add("services");
       const periods = comparisonPeriods(today());
       add("trendCurrent", `/v2/summary?${new URLSearchParams(periods.current)}`);
       add("trendPrevious", `/v2/summary?${new URLSearchParams(periods.previous)}`);
@@ -125,7 +125,7 @@ export function Workspace({ children }: { children: ReactNode }) {
     if (page === "settings") add("recovery", "/recovery/email");
     if (page === "settings" && me.role === "owner") { add("opening"); add("policy", "/v2/policy"); }
     if (page === "staff") add("users"); if (page === "audit") add("audit");
-    try { const entries = await Promise.all([...reads].map(async ([key, path]) => [key, await api(path)])); if (version === generation.current) { setData(Object.fromEntries(entries)); setLoadedPage(page); } }
+    try { const data = await api(`/batch?reads=${encodeURIComponent(JSON.stringify([...reads]))}`); if (version === generation.current) { setData(data); setLoadedPage(page); } }
     catch (err) { if (version === generation.current) { if (err instanceof ApiError && err.status === 401) { setMe(null); setDialog(null); setData({}); setLoadedPage(null); setError("Sesi berakhir. Silakan masuk kembali."); } else { setError(err instanceof Error ? err.message : "Data gagal dimuat."); setLoadedPage(page); } } }
     finally { if (version === generation.current) setLoading(false); }
   }, [me, page]);
@@ -167,8 +167,8 @@ export function Workspace({ children }: { children: ReactNode }) {
           setRegistered(true);
           return;
         }
-        await api("/login", values);
-        const user = await api("/me");
+        const result = await api("/login", values);
+        const user = result.user || await api("/me");
         setRegistered(false);
         setLoadedPage(null);
         setData({});

@@ -56,6 +56,16 @@ The optional PostgreSQL suite requires a separate `techkasir_verify_...` schema 
 
 The public Supabase CA is bundled for verified PostgreSQL TLS. `DATABASE_CA_CERT` can supply a replacement CA server-side after a provider rotation.
 
+## Data loading performance
+
+The frontend routes Supabase requests to the database region, Mumbai (`ap-south-1`), using `forceFunctionRegion`. Page data is fetched through one authenticated, read-only batch request instead of separate concurrent HTTP calls. Each batch enforces the original endpoint's permissions and uses a consistent database snapshot. Identical queries are reused only inside that read-only request; data is not cached across users or requests. A rejected subrequest is fully settled before the database connection is released.
+
+Monthly reports preload sale/return data once for all twelve months. Sales lists fetch payment totals and return credits with joins instead of separate queries for each row. Bootstrap and the current user are combined in `/api/session`, and login returns the user's sanitized profile.
+
+Measured against the existing isolated QA store on 11 November 2026: dashboard requests previously took 4,828 ms together; the new Mumbai batch took 166–218 ms in warm tests. Individual list/report responses were compared with saved pre-change responses and matched exactly. Eleven regression groups and TypeScript passed, including historical inventory, resale, supplier returns, large currency and mixed batch permissions. Cold startup and the user's network can still add latency.
+
+HTML and route data revalidate with `Cache-Control: no-cache`; hashed Next.js assets keep their immutable one-year cache. Refresh existing tabs once after this release to replace any HTML cached under the previous one-hour policy.
+
 ## Release verification, 11 November 2026
 
 The Spark Hosting release and Supabase Edge Function are deployed. Both original accounts and their password hashes were imported after a consistent SQLite backup was saved under the gitignored `data/backups/` directory. Every imported row was verified.

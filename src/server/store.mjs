@@ -5,6 +5,7 @@ import { scopeStoreIdentifiers } from './store-scoping.mjs';
 import { createDatabase } from '#techkasir-database';
 import { environment } from './environment.mjs';
 import { Buffer } from 'node:buffer';
+import { createReportSnapshot } from './report-snapshot.mjs';
 import { randomBytes, randomUUID, scryptSync, createHash, timingSafeEqual } from 'node:crypto';
 import { join } from 'node:path';
 import { sumMoney, subtractMoney, multiplyMoney, validateTextFields, formatMoney } from '../../shared/domain.mjs';
@@ -131,9 +132,14 @@ async function userFor(req) {
   return (await one('SELECT u.id,u.store_id,u.username,u.name,u.role,u.active,s.expires_at FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1', hash(token), now())) || null;
 }
 async function needUser(req) {
-  const u = await userFor(req);
+  const u = req[authenticatedUser] || await userFor(req);
   if (!u) throw bad('Silakan masuk terlebih dahulu.', 401);
   return u;
+}
+const authenticatedUser = Symbol('authenticated batch user');
+async function profileFor(user) {
+  return { id: user.id, name: user.name, username: user.username, role: user.role,
+    store: (await one('SELECT name FROM stores WHERE id=?', user.store_id)).name };
 }
 function needRole(u, roles) {
   if (!roles.includes(u.role)) throw bad('Akses tidak diizinkan.', 403);
@@ -368,12 +374,15 @@ async function dashboard(storeId) {
 async function monthlyReport(storeId, year) {
   const sales = await all('SELECT * FROM sales WHERE store_id=?', storeId);
   const services = await all('SELECT * FROM service_jobs WHERE store_id=?', storeId);
-  const units = await all('SELECT u.*,s.sold_on,r.returned_on FROM units u LEFT JOIN sales s ON s.unit_id=u.id AND NOT EXISTS(SELECT 1 FROM v2_customer_returns cr WHERE cr.sale_id=s.id AND cr.received_on IS NOT NULL) LEFT JOIN unit_returns r ON r.unit_id=u.id WHERE u.store_id=?', storeId);
+  const units = await all('SELECT * FROM units WHERE store_id=?', storeId);
   const expenses = await all('SELECT * FROM expenses WHERE store_id=?', storeId);
   const incomes = await all('SELECT * FROM incomes WHERE store_id=?', storeId);
   const losses = await all('SELECT * FROM losses WHERE store_id=?', storeId);
   const payments = await all('SELECT p.* FROM payments p WHERE p.store_id=? AND NOT EXISTS (SELECT 1 FROM payment_corrections c JOIN payment_reversals r ON r.original_payment_id=c.original_payment_id WHERE p.id IN (r.original_payment_id,r.reversal_payment_id))', storeId);
   const opening = await one('SELECT * FROM opening_balances WHERE store_id=?', storeId);
+  const customerReturns = await all('SELECT sale_id,received_on,credit,cost_credit FROM v2_customer_returns WHERE store_id=?', storeId);
+  const unitReturns = await all('SELECT r.unit_id,r.returned_on FROM unit_returns r JOIN units u ON u.id=r.unit_id WHERE u.store_id=?', storeId);
+  const snapshot = createReportSnapshot({ units, sales, unitReturns, customerReturns });
   return await Promise.all(Array.from({
     length: 12
   }, async (_, index) => {
@@ -383,7 +392,7 @@ async function monthlyReport(storeId, year) {
     const end = endDate.toISOString().slice(0, 10);
     const sold = sales.filter(row => row.sold_on.startsWith(month));
     const completed = services.filter(row => row.status === 'Selesai' && row.completed_on?.startsWith(month));
-    const adj = await v2.adjustments(storeId, month + '-01', end);
+    const adj = snapshot.adjustments(month + '-01', end);
     const unitRevenue = subtractMoney(await sumRows(sold, row => subtractMoney(row.price_amount, row.discount_amount)), adj.revenue);
     const serviceRevenue = await sumRows(completed, row => sumMoney(row.part_charge, row.service_charge));
     const otherIncome = await sumRows(incomes.filter(row => row.happened_on.startsWith(month)), row => row.amount);
@@ -394,7 +403,7 @@ async function monthlyReport(storeId, year) {
     const cashIn = await sumRows(payments.filter(row => row.paid_on.startsWith(month) && row.direction === 'IN'), row => row.amount);
     const cashOut = await sumRows(payments.filter(row => row.paid_on.startsWith(month) && row.direction === 'OUT'), row => row.amount);
     const cashToDate = await sumRows(payments.filter(row => row.paid_on <= end), row => row.direction === 'IN' ? row.amount : subtractMoney(0, row.amount));
-    const inventory = await v2.inventoryAt(storeId, end);
+    const inventory = snapshot.inventoryAt(end);
     const totalRevenue = sumMoney(unitRevenue, serviceRevenue, otherIncome);
     const grossProfit = subtractMoney(subtractMoney(totalRevenue, unitCost), serviceCost);
     return {
@@ -593,6 +602,10 @@ async function api(req, res, url) {
   const method = req.method,
     path = url.pathname;
   if (await recovery.handle(req, res, path)) return;
+  if (method === 'GET' && path === '/api/session') {
+    const user = await userFor(req);
+    return json(res, 200, { needsSetup: user ? false : !(await one('SELECT id FROM users LIMIT 1')), user: user ? await profileFor(user) : null });
+  }
   if (method === 'GET' && path === '/api/bootstrap') return json(res, 200, {
     needsSetup: !(await one('SELECT id FROM users LIMIT 1'))
   });
@@ -647,7 +660,7 @@ async function api(req, res, url) {
     await run('DELETE FROM sessions WHERE expires_at<=?', now());
     await run('INSERT INTO sessions VALUES(?,?,?,?)', hash(token), u.id, new Date(Date.now() + (edgeMode ? 28_800_000 : 604800000)).toISOString(), now());
     return json(res, 200, {
-      ok: true, ...(edgeMode ? { sessionToken: token } : {})
+      ok: true, user: await profileFor(u), ...(edgeMode ? { sessionToken: token } : {})
     }, {
       'Set-Cookie': sessionCookie(req, token)
     });
@@ -662,6 +675,30 @@ async function api(req, res, url) {
     });
   }
   const u = await needUser(req);
+  if (method === 'GET' && path === '/api/batch') {
+    const raw = url.searchParams.get('reads');
+    let reads;
+    try { reads = raw && raw.length <= 8192 ? JSON.parse(raw) : null; } catch { throw bad('Daftar data tidak valid.'); }
+    if (!Array.isArray(reads) || !reads.length || reads.length > 16 || reads.some(entry =>
+      !Array.isArray(entry) || entry.length !== 2 || typeof entry[0] !== 'string' || !/^[a-zA-Z][a-zA-Z0-9]{0,63}$/.test(entry[0]) ||
+      typeof entry[1] !== 'string' || entry[1].length > 512 || !/^\/(?:v2\/)?[a-z-]+(?:\?[a-zA-Z0-9_=&%.,:-]+)?$/.test(entry[1]) ||
+      ['/batch', '/session'].includes(entry[1].split('?')[0])) || new Set(reads.map(([key]) => key)).size !== reads.length) throw bad('Daftar data tidak valid.');
+    const results = await Promise.allSettled(reads.map(async ([key, readPath]) => {
+      let status, value;
+      await api({ method: 'GET', headers: req.headers, [authenticatedUser]: u }, {
+        writeHead(code) { status = code; },
+        end(body) { value = JSON.parse(body); },
+      }, new URL('/api' + readPath, 'http://localhost'));
+      if (status !== 200) throw bad(value?.error || 'Data belum dapat dimuat.', status || 500);
+      return [key, value];
+    }));
+    // Finish every read before the request transaction releases its connection,
+    // including when one requested endpoint rejects the caller's permissions.
+    const failure = results.find(result => result.status === 'rejected');
+    if (failure) throw failure.reason;
+    const entries = results.map(result => result.value);
+    return json(res, 200, Object.fromEntries(entries));
+  }
   if (await v2.handle(req, res, url, u)) return;
   if (method === 'POST' && path === '/api/search') {
     const b = await bodyOf(req);
@@ -722,13 +759,7 @@ async function api(req, res, url) {
         username
       };
     }
-    return json(res, 200, {
-      id: profile.id,
-      name: profile.name,
-      username: profile.username,
-      role: profile.role,
-      store: (await one('SELECT name FROM stores WHERE id=?', profile.store_id)).name
-    });
+    return json(res, 200, await profileFor(profile));
   }
   if (method === 'GET' && path === '/api/dashboard') {
     needRole(u, ['owner']);

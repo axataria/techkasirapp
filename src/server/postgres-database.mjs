@@ -42,8 +42,11 @@ export async function createDatabase({ connectionString = environment.DATABASE_U
   const query = async (sql, args = []) => {
     const active = context.getStore();
     if (active?.client) {
+      const key = active.readCache ? JSON.stringify([sql, args], (_key, value) => typeof value === 'bigint' ? value.toString() : value) : null;
+      if (key && active.readCache.has(key)) return active.readCache.get(key);
       const result = active.queue.then(() => active.client.query(postgresSql(sql), args));
       active.queue = result.catch(() => {});
+      if (key) active.readCache.set(key, result);
       return result;
     }
     const client = await pool.connect();
@@ -69,7 +72,7 @@ export async function createDatabase({ connectionString = environment.DATABASE_U
         // Serialize business writes across Cloud Run instances, including checks
         // before a transaction. This keeps stock, invoices and replay checks atomic.
         if (write) await client.query('SELECT pg_advisory_xact_lock(761482903)');
-        const result = await context.run({ client, savepoint: 0, queue: Promise.resolve() }, fn);
+        const result = await context.run({ client, savepoint: 0, queue: Promise.resolve(), readCache: write ? null : new Map() }, fn);
         await client.query('COMMIT');
         return result;
       } catch (error) {

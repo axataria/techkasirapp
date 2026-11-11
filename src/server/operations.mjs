@@ -136,23 +136,28 @@ export async function createV2(c) {
   }
   async function sales(u) {
     needRole(u, ['owner', 'cashier']);
-    return await Promise.all((await all(`SELECT s.*,un.code unit_code,un.model,un.specs,c.name customer_name,c.phone customer_phone,i.id invoice_id,i.number invoice_number,m.channel,m.warranty_days,m.terms,m.ends_on FROM sales s JOIN units un ON un.id=s.unit_id LEFT JOIN customers c ON c.id=s.customer_id LEFT JOIN invoices i ON i.source_id=s.id AND i.source_type='sale' LEFT JOIN v2_sale_meta m ON m.sale_id=s.id WHERE s.store_id=? ORDER BY s.created_at DESC`, u.store_id)).map(async s => {
-      const r = await one('SELECT * FROM v2_customer_returns WHERE sale_id=? AND received_on IS NOT NULL', s.id);
+    return (await all(`SELECT s.*,un.code unit_code,un.model,un.specs,c.name customer_name,c.phone customer_phone,i.id invoice_id,i.number invoice_number,m.channel,m.warranty_days,m.terms,m.ends_on,
+      COALESCE(p.total,0) paid_total,COALESCE(r.credit,0) return_credit,r.id return_id,r.received_on returned_on
+      FROM sales s JOIN units un ON un.id=s.unit_id LEFT JOIN customers c ON c.id=s.customer_id
+      LEFT JOIN invoices i ON i.source_id=s.id AND i.source_type='sale' LEFT JOIN v2_sale_meta m ON m.sale_id=s.id
+      LEFT JOIN (SELECT source_id,SUM(CASE WHEN direction='IN' THEN amount ELSE -amount END) total FROM payments WHERE store_id=? AND source_type='sale' GROUP BY source_id) p ON p.source_id=s.id
+      LEFT JOIN v2_customer_returns r ON r.sale_id=s.id AND r.received_on IS NOT NULL
+      WHERE s.store_id=? ORDER BY s.created_at DESC`, u.store_id, u.store_id)).map(({ paid_total, return_credit, ...s }) => {
       const result = {
         ...s,
         channel: s.channel || 'Toko',
-        paid: await paid('sale', s.id),
-        remaining: Math.max(0, (await saleDue(s)) - Number(await paid('sale', s.id))),
-        credit: await credit(s.id),
-        return_id: r?.id,
-        returned_on: r?.received_on
+        paid: paid_total,
+        remaining: Math.max(0, Math.max(0, Number(subtractMoney(subtractMoney(s.price_amount, s.discount_amount), return_credit))) - Number(paid_total)),
+        credit: return_credit,
+        return_id: s.return_id ?? undefined,
+        returned_on: s.returned_on ?? undefined
       };
       if (u.role !== 'owner') {
         delete result.unit_cost_snapshot;
         delete result.sale_cost_amount;
       }
       return result;
-    }));
+    });
   }
   async function receiptRows(u) {
     return await Promise.all((await all('SELECT r.*,s.name supplier_name FROM v2_receipts r JOIN v2_suppliers s ON s.id=r.supplier_id WHERE r.store_id=? ORDER BY r.created_at DESC', u.store_id)).map(async r => ({
