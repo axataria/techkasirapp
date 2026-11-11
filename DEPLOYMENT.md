@@ -1,6 +1,7 @@
 # Firebase App Hosting + Supabase
 
 Firebase project: `techkasirapp-axataria`.
+Public address: `https://kasirlaptoplab.web.app` (Hosting site reserved in this project; target `app`).
 Supabase project: `techkasirapp` (`eumlynnylgdlscpednor`, Mumbai).
 
 The production database is PostgreSQL in the private `techkasir` schema. Its dedicated `techkasir_app` login has access to app tables, not database administration. Tables have RLS policies for that backend role and no grants to browser roles. Existing app authentication, store isolation and staff permissions remain on the server. Supabase Auth is not required.
@@ -12,8 +13,8 @@ The custom Node server serves Next.js, `/api/*` and `/document` on one origin. `
 1. Enable the Blaze billing plan for [the Firebase project](https://console.firebase.google.com/project/techkasirapp-axataria/usage/details). Set an appropriate billing alert. No billing account was attached during preparation.
 2. Create an App Hosting backend in the Firebase console, connect `axataria/techkasirapp`, choose `main` and the repository root. Choose an available region near the Supabase database and your users. Use Node 24.
 3. Store the server-only connection string as Cloud Secret Manager secret `techkasir-database-url`. A generated restricted connection is saved locally in the gitignored `.env.cloud.local`; do not paste it into source code or chat. Use the CLI's secret input prompt or stdin. Grant the backend access to the secret.
-4. Store the backend's exact HTTPS origin (no path) as secret `techkasir-app-origin`. `apphosting.yaml` maps both secrets to runtime environment variables.
-5. Deploy the prepared commit. Verify `/api/bootstrap`, create the owner account, then test login, a customer, stock, a payment and a printable invoice. Verify the records remain after a redeploy.
+4. `apphosting.yaml` sets `TECHKASIR_APP_ORIGIN` to `https://kasirlaptoplab.web.app`. After the backend exists, obtain its actual Cloud Run service ID and region. Create `firebase.json` with Hosting target `app` and a `**` rewrite to that service/region, then deploy `hosting:app`. Do not substitute a guessed Cloud Run service ID. Firebase documents the rewrite configuration at https://firebase.google.com/docs/hosting/cloud-run#direct-hosting-requests-to-container. The Hosting site is reserved, but no app has been deployed there yet.
+5. Deploy the prepared commit and Hosting rewrite. Import the existing local accounts at cutover, then verify `/api/bootstrap`, login, a customer, stock, a payment and a printable invoice through `kasirlaptoplab.web.app`. Verify the records remain after a redeploy.
 
 App Hosting needs Blaze. `minInstances: 0` allows cold starts; `maxInstances: 1` limits the app to one instance for this small installation. These settings do not cap the total bill. Each instance uses a small PostgreSQL connection pool. Writes are serialized through a transaction advisory lock; responses are sent after the request commits.
 

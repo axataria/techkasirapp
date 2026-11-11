@@ -1,3 +1,8 @@
 {
-  "projects": { "default": "techkasirapp-axataria" }
+  "projects": { "default": "techkasirapp-axataria" },
+  "targets": {
+    "techkasirapp-axataria": {
+      "hosting": { "app": ["kasirlaptoplab"] }
+    }
+  }
 }
