@@ -1,14 +1,18 @@
 import { activationHold, catalogByCategory, catalogCommon, conditions, phoneOptions, platforms, unitByCategory, unitCommon } from '../../shared/product-fields.mjs';
-
-export function createProductDetails({ db, one, run, bad, date }) {
-  db.exec(`
+export async function createProductDetails({
+  db,
+  one,
+  run,
+  bad,
+  date
+}) {
+  if (db.dialect === 'sqlite') await db.exec(`
     CREATE TABLE IF NOT EXISTS catalog_details (product_id TEXT PRIMARY KEY REFERENCES v2_products(id), details TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS unit_details (unit_id TEXT PRIMARY KEY REFERENCES units(id), details TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS unit_imeis (store_id TEXT NOT NULL REFERENCES stores(id), imei TEXT NOT NULL,
       unit_id TEXT NOT NULL REFERENCES units(id), PRIMARY KEY(store_id, imei));
     CREATE INDEX IF NOT EXISTS idx_unit_imeis_unit ON unit_imeis(unit_id);
   `);
-
   function fields(value, allowed) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw bad('Detail produk atau unit tidak valid.');
     const result = {};
@@ -22,18 +26,15 @@ export function createProductDetails({ db, one, run, bad, date }) {
     }
     return result;
   }
-
   function option(details, key, choices) {
     if (details[key] && !choices.includes(details[key])) throw bad('Pilihan detail tidak valid.');
   }
-
   function number(details, key, min, max, decimal = false) {
     if (details[key] === undefined) return;
     const value = Number(details[key]);
-    if (!Number.isFinite(value) || (!decimal && !Number.isInteger(value)) || value < min || value > max) throw bad('Angka spesifikasi atau pemeriksaan di luar batas.');
+    if (!Number.isFinite(value) || !decimal && !Number.isInteger(value) || value < min || value > max) throw bad('Angka spesifikasi atau pemeriksaan di luar batas.');
     details[key] = value;
   }
-
   function catalog(category, value) {
     if (!Object.hasOwn(platforms, category)) throw bad('Kategori tidak valid.');
     const details = fields(value, [...catalogCommon, ...catalogByCategory[category]]);
@@ -46,7 +47,6 @@ export function createProductDetails({ db, one, run, bad, date }) {
     option(details, 'esim', ['Ya', 'Tidak']);
     return details;
   }
-
   function unit(category, value, requiresCondition = false) {
     if (!Object.hasOwn(platforms, category)) throw bad('Kategori tidak valid.');
     const details = fields(value, [...unitCommon, ...unitByCategory[category]]);
@@ -65,20 +65,21 @@ export function createProductDetails({ db, one, run, bad, date }) {
     }
     return details;
   }
-
-  function checkImei(storeId, imei, unitId = '') {
-    const used = one('SELECT unit_id FROM unit_imeis WHERE store_id=? AND imei=? AND unit_id<>?', storeId, imei, unitId)
-      || one("SELECT m.unit_id FROM v2_unit_meta m JOIN units u ON u.id=m.unit_id WHERE m.store_id=? AND m.serial=? AND m.unit_id<>? AND u.category='HP'", storeId, imei, unitId);
+  async function checkImei(storeId, imei, unitId = '') {
+    const used = (await one('SELECT unit_id FROM unit_imeis WHERE store_id=? AND imei=? AND unit_id<>?', storeId, imei, unitId)) || (await one("SELECT m.unit_id FROM v2_unit_meta m JOIN units u ON u.id=m.unit_id WHERE m.store_id=? AND m.serial=? AND m.unit_id<>? AND u.category='HP'", storeId, imei, unitId));
     if (used) throw bad('IMEI sudah digunakan pada unit lain di toko ini.', 409);
   }
-
-  function writeUnit(storeId, unitId, details) {
+  async function writeUnit(storeId, unitId, details) {
     const identifiers = [details.imei1, details.imei2].filter(Boolean);
-    for (const imei of identifiers) checkImei(storeId, imei, unitId);
-    run('DELETE FROM unit_imeis WHERE unit_id=?', unitId);
-    for (const imei of identifiers) run('INSERT INTO unit_imeis VALUES(?,?,?)', storeId, imei, unitId);
-    run('INSERT INTO unit_details VALUES(?,?) ON CONFLICT(unit_id) DO UPDATE SET details=excluded.details', unitId, JSON.stringify(details));
+    for (const imei of identifiers) await checkImei(storeId, imei, unitId);
+    await run('DELETE FROM unit_imeis WHERE unit_id=?', unitId);
+    for (const imei of identifiers) await run('INSERT INTO unit_imeis VALUES(?,?,?)', storeId, imei, unitId);
+    await run('INSERT INTO unit_details VALUES(?,?) ON CONFLICT(unit_id) DO UPDATE SET details=excluded.details', unitId, JSON.stringify(details));
   }
-
-  return { catalog, unit, checkImei, writeUnit };
+  return {
+    catalog,
+    unit,
+    checkImei,
+    writeUnit
+  };
 }

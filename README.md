@@ -4,6 +4,8 @@ Satu proyek dan satu proses aplikasi. `npm.cmd run dev` menjalankan frontend Nex
 
 Versi aktif: **V3 (3.0.0)**. Panduan operasi, perbaikan fungsional, dan hasil verifikasi tersedia di [V3.md](V3.md).
 
+Deployment cloud menggunakan **Firebase App Hosting + Supabase PostgreSQL**. Konfigurasi, secret, migrasi data SQLite, dan langkah aktivasi tersedia di [DEPLOYMENT.md](DEPLOYMENT.md). SQLite tetap tersedia untuk pengembangan lokal.
+
 A working local build for a laptop/phone store. V2 follows [PRD-V2.md](PRD-V2.md); see [V2.md](V2.md) for implemented modules, migration, workflows, verification, and MVP limits. The original [PRD.md](PRD.md), [WORKFLOWS.md](WORKFLOWS.md), [ERD.md](ERD.md), and [DESIGN_REVIEW.md](DESIGN_REVIEW.md) remain historical references.
 
 V2 adds the 12-item sidebar, a POS with a right cart panel, split order/payment history, catalogue and individual units, suppliers/receiving, QC, warranty claims, customer/supplier returns, and date-range reporting with CSV export. Authentication and the existing design system are retained. Finance/payments live under Report; staff/audit live under Settings; service jobs live in Order history.
@@ -12,7 +14,7 @@ Stop the previous server before starting v2. The first v2 startup creates a cons
 
 ## Run
 
-Requires Node.js 24 or newer. The frontend uses Next.js App Router, React, TypeScript, Tailwind CSS v4, and official shadcn/ui source components. Node.js and SQLite continue to handle the existing store API.
+Requires Node.js 24. The frontend uses Next.js App Router, React, TypeScript, Tailwind CSS v4, and official shadcn/ui source components. The store API uses SQLite locally and PostgreSQL when `DATABASE_URL` is configured.
 
 ```powershell
 npm.cmd install

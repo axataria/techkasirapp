@@ -125,8 +125,11 @@ try{
   assert.equal(cashierPhone.unitDetails.condition, 'Bekas');
   cookie=ownerCookie;
   console.log('Product details passed: category validation, separate catalog and stock, IMEI slot uniqueness, activation QC hold, and cashier redaction.');
-  assert.equal(readdirSync(temp).filter(f=>f.startsWith('before-v2-')).length,1);
-  await stop();await start();assert.equal((await req('/api/sales')).length,2);assert.equal(readdirSync(temp).filter(f=>f.startsWith('before-v2-')).length,1);
-  const db=new DatabaseSync(join(temp,'store.db'));assert.equal(db.prepare('PRAGMA integrity_check').get().integrity_check,'ok');assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);db.close();
+  if (!process.env.DATABASE_URL) assert.equal(readdirSync(temp).filter(f=>f.startsWith('before-v2-')).length,1);
+  await stop();await start();assert.equal((await req('/api/sales')).length,2);
+  if (!process.env.DATABASE_URL) {
+    assert.equal(readdirSync(temp).filter(f=>f.startsWith('before-v2-')).length,1);
+    const db=new DatabaseSync(join(temp,'store.db'));assert.equal(db.prepare('PRAGMA integrity_check').get().integrity_check,'ok');assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);db.close();
+  }
   console.log('V2 integration passed: migration/restart, receiving, serial conflicts, QC gates, idempotent POS, warranty, return credit/refund, resale, supplier refund, accounting and access.');
 }finally{await stop();rmSync(temp,{recursive:true,force:true});if(stderr.replaceAll(/.*ExperimentalWarning.*\n?/g,'').trim()&&!stderr.includes('ExperimentalWarning'))console.error(stderr);}

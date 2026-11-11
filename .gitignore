@@ -1,5 +1,11 @@
 data/
 .env
+.env.*
+!.env.example
+.migration-work/
+.techkasir-push/
+.next-backup-*/
+firebase-debug.log
 node_modules/
 .pnpm-store/
 qa/**/browser-profile/

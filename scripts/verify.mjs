@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 // Cross-platform V3 acceptance: compile the frontend before testing its server.
 for (const args of [
   ['node_modules/typescript/bin/tsc', '--noEmit'],
-  ['node_modules/next/dist/bin/next', 'build'],
+  ['node_modules/next/dist/bin/next', 'build', '--webpack'],
   ['verify.mjs'],
   ['next.test.mjs'],
 ]) {

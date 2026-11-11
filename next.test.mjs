@@ -21,7 +21,7 @@ try {
   }
   const base = output.match(/running at (http:\/\/[^\s]+)/)?.[1];
   assert.ok(base, `Next.js did not start: ${errors}`);
-  const hostingOrigin = process.env.TECHKASIR_FIREBASE_ORIGIN;
+  const hostingOrigin = process.env.TECHKASIR_APP_ORIGIN || process.env.TECHKASIR_FIREBASE_ORIGIN;
   const origin = hostingOrigin || base;
   const request = async (path, body, headers = {}) => {
     const response = await fetch(base + path, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', Cookie: cookie, ...headers }, body: body ? JSON.stringify(body) : undefined });
